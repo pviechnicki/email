@@ -11,7 +11,7 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import numpy as np
 import pandas as pd
 import csv
@@ -26,6 +26,70 @@ from email_utils import countTokens, countFreqs
 import nltk
 from nltk.corpus import stopwords
 
+#---------------------------------------------------#
+# Return name of dataframe based on input parameter #
+#---------------------------------------------------#
+def chooseDF(responseClass):
+
+    if responseClass == 'truePositive':
+        return (resultsDF_tp)
+    elif responseClass == 'falsePositive':
+        return (resultsDF_fp)
+    elif responseClass == 'falseNegative':
+        return (resultsDF_fn)
+    elif responseClass == 'trueNegative':
+        return (resultsDF_tn)
+    else:
+        return Null
+
+#------------------------------------------------------------#
+# Update the bar chart based on the current email            #
+#------------------------------------------------------------#
+def updateBarChartData(currentEmail):
+    global feature_counts_training
+    global feature_counts_test
+    global visibleTermsList
+
+    currentTextTokenLength = countTokens(currentEmail)
+    currentTextTermFreqs = countFreqs(visibleTermsList, currentEmail)
+
+    myFigure = {
+        'data': [
+            go.Bar(
+                x = [(feature_counts_training[term]/totalTermCounts['trainTokensTotal'] * 1000)
+                     for term in visibleTermsList],
+                y = visibleTermsList,
+                name = 'Training Corpus',
+                orientation = 'h',
+                width = .2
+            ),
+            go.Bar(
+                x = [(feature_counts_test[term]/totalTermCounts['testTokensTotal'] * 1000)
+                     for term in visibleTermsList],
+                y = visibleTermsList,
+                name = 'Test Corpus',
+                orientation = 'h',
+                width = .2
+            ),
+            go.Bar(
+                x = [(currentTextTermFreqs[term]/currentTextTokenLength * 1000) for term in visibleTermsList],
+                y = visibleTermsList,
+                name = 'This Email',
+                orientation = 'h',
+                width = .2
+            )
+        ],
+        'layout': go.Layout(
+            xaxis= {'title': 'Occurrences per 1000 word tokens', 'autorange': True},
+            yaxis= {'type': 'category', 'autorange': True},
+            width=500,
+            height=500,
+            title='Most Informative Terms',
+            barmode='group'
+        )
+    }
+    
+    return(myFigure)
 
 #------------------------------------------------------#
 # Prepare input data                                   #
@@ -65,15 +129,16 @@ responseTypes = ['truePositive', 'trueNegative', 'falsePositive', 'falseNegative
 # Store top 10 terms in list for easy access                        #
 #-------------------------------------------------------------------#
 visibleTermsList = list(informativeTerms['feature'].iloc[0:10])
-numEmailsInSelectedDF = resultsDF_tp.shape[0]
+selectedDF = resultsDF_tp
+numEmailsInSelectedDF = selectedDF.shape[0]
 emailPointer = 1
 
 #Highlight the terms in the email which are in the visible list
 highlightedEmailSubject = highlightTerms(resultsDF_tp.iloc[(emailPointer - 1)].subject, visibleTermsList)
 highlightedEmailBody = highlightTerms(resultsDF_tp.iloc[(emailPointer - 1)].body, visibleTermsList)
 subjectPlusBody = (resultsDF_tp.iloc[(emailPointer -1)].subject + " " + resultsDF_tp.iloc[(emailPointer - 1)].body)
-currentTextTokenLength = countTokens(subjectPlusBody)
-currentTextTermFreqs = countFreqs(visibleTermsList, subjectPlusBody)
+initialTextTokenLength = countTokens(subjectPlusBody)
+initialTextTermFreqs = countFreqs(visibleTermsList, subjectPlusBody)
 
 #----------------------------------------------------------------------------#
 #Local version of stylesheet from https://codepen.io/chriddyp/pen/bWLwgP.css #
@@ -84,6 +149,7 @@ stylesheets = ['bWLwgP.css']
 # Start building the dashboard - initialize  #
 #--------------------------------------------#    
 app = dash.Dash()
+app.title = "Explore Email Classifier Performance"
 
 #--------------------------------------------#    
 #Allow locally-served css
@@ -124,78 +190,79 @@ app.layout = html.Div(children = [
                                   )
                           ],
                           className="row")
-             ]),
+             ]), #classifier_stats_div
     html.Div(id="text_and_graph_div", children=[
         html.Div(id="holder_div", className = "six columns", children = [
-        html.H2("Performance On Each Email"),
-        html.Div(id="output_class_selector_div", children=[
-            html.Label("Show me..."),
-            dcc.RadioItems(
-                id="showMe",
-                options = [{'label': "{}s".format(responseType), 'value': responseType } for responseType in responseTypes ],
-                value = 'truePositive',
-                labelStyle={'display': 'inline-block'}
-            )
-        ]),
-        html.Table(
-            html.Tr(children=[
-                html.Td(children = html.Button(id='buttonPrevious', children='<<Previous<<')),
-                html.Td(id="emailNumberText", children = "Showing email #{} of {}".format(emailPointer, numEmailsInSelectedDF)),
-                html.Td(children = html.Button(id='buttonNext', children='>>Next>>'))
-            ])
-        ),
-        html.Div(id="text_div", children=[
-            html.Iframe(
-                id = 'email_text_iframe',
-                sandbox='',
-                srcDoc = formatEmail(highlightedEmailSubject,
-                                     highlightedEmailBody),
-                style = {'width': '450px', 'height': '250px'}
+            html.H2("Performance On Each Email"),
+            html.Div(id="output_class_selector_div", children=[
+                html.Label("Show me..."),
+                dcc.RadioItems(
+                    id="showMe",
+                    options = [{'label': "{}s".format(responseType), 'value': responseType } for responseType in responseTypes ],
+                    value = 'truePositive',
+                    labelStyle={'display': 'inline-block'}
                 )
-        ], style= {'height':'200px'})
-        ]),
-        html.Div(id="graph_div", className = "six columns", children=[
-            dcc.Graph(
-                id='bar-chart',
-                figure={
-                    'data': [
-                        go.Bar(
-                            x = [(feature_counts_training[term]/totalTermCounts['trainTokensTotal'] * 1000)
-                                 for term in visibleTermsList],
-                            y = visibleTermsList,
-                            name = 'Training Corpus',
-                            orientation = 'h',
-                            width = .2
-                        ),
-                        go.Bar(
-                            x = [(feature_counts_test[term]/totalTermCounts['testTokensTotal'] * 1000)
-                                 for term in visibleTermsList],
-                            y = visibleTermsList,
-                            name = 'Test Corpus',
-                            orientation = 'h',
-                            width = .2
-                        ),
-                        go.Bar(
-                            x = [(currentTextTermFreqs[term]/currentTextTokenLength * 1000) for term in visibleTermsList],
-                            y = visibleTermsList,
-                            name = 'This Email',
-                            orientation = 'h',
-                            width = .2
-                        )
-                    ],
-                    'layout': go.Layout(
-                        xaxis= {'title': 'Occurrences per 1000 word tokens', 'autorange': True},
-                        yaxis= {'type': 'category', 'autorange': True},
-                        width=500,
-                        height=500,
-                        title='Most Informative Terms',
-                        barmode='group'
+            ]),
+            html.Table(id = 'tableJumpTo', children = [
+                html.Tr(children = [
+                    html.Td(html.Label("Jump to Email No.")),
+                    html.Td(dcc.Input(id='inputEmailNumber', value = 1, type='number')), #Returns unicode string even though we request a number!
+                    html.Td(html.P(id = 'pTotalEmails', children = " of {}".format(numEmailsInSelectedDF))),
+                    html.Td(html.Button(id='buttonSubmit', children="Submit")),
+                ]) #tr
+            ]), #tableJumpTo
+            html.Div(id="text_div", children=[
+                html.Iframe(
+                    id = 'email_text_iframe',
+                    sandbox='',
+                    srcDoc = formatEmail(highlightedEmailSubject,
+                                         highlightedEmailBody),
+                    style = {'width': '450px', 'height': '200px'}
+                )
+            ], style= {'height':'200px'})
+        ]), #holder div
+    ]), 
+    html.Div(id="graph_div", className = "six columns", children=[
+        dcc.Graph(
+            id='bar-chart',
+            figure={
+                'data': [
+                    go.Bar(
+                        x = [(feature_counts_training[term]/totalTermCounts['trainTokensTotal'] * 1000)
+                             for term in visibleTermsList],
+                        y = visibleTermsList,
+                        name = 'Training Corpus',
+                        orientation = 'h',
+                        width = .2
+                    ),
+                    go.Bar(
+                        x = [(feature_counts_test[term]/totalTermCounts['testTokensTotal'] * 1000)
+                             for term in visibleTermsList],
+                        y = visibleTermsList,
+                        name = 'Test Corpus',
+                        orientation = 'h',
+                        width = .2
+                    ),
+                    go.Bar(
+                        x = [(initialTextTermFreqs[term]/initialTextTokenLength * 1000) for term in visibleTermsList],
+                        y = visibleTermsList,
+                        name = 'This Email',
+                        orientation = 'h',
+                        width = .2
                     )
-                }
-            )
-        ], style={'height': '800px'}) #Text_div
-    ], className = "row")
-])
+                ],
+                'layout': go.Layout(
+                    xaxis= {'title': 'Occurrences per 1000 word tokens', 'autorange': True},
+                    yaxis= {'type': 'category', 'autorange': True},
+                    width=500,
+                    height=500,
+                    title='Most Informative Terms',
+                    barmode='group'
+                )
+            }
+        )
+    ], style={'height': '800px'}) #Text_div
+], className = "row") #text_and_graph_div
 
 
 #-------------------------------------------------------------------#
@@ -203,49 +270,75 @@ app.layout = html.Div(children = [
 #-------------------------------------------------------------------#
 
 #-------------------------------------------------------------------#
-# 2 callbacks for radio button to select email subset
+# callbacks for radio button to select email subset and number      #
 #-------------------------------------------------------------------#
-@app.callback(Output('emailNumberText', 'children'),
+@app.callback(Output('pTotalEmails', 'children'),
               [Input('showMe', 'value')])
 def update_df_selection(input1):
     global resultsDF_tp
     global resultsDF_tn
     global resultsDF_fn
     global resultsDF_fp
+    global emailPointer
     
-    if input1 == 'truePositive':
-        selectedDF = resultsDF_tp
-    elif input1 == 'falsePositive':
-        selectedDF = resultsDF_fp
-    elif input1 == 'falseNegative':
-        selectedDF = resultsDF_fn
-    elif input1 == 'trueNegative':
-        selectedDF = resultsDF_tn
+    selectedDF = chooseDF(input1)#
+
+    #Reset to ist email
+    emailPointer = 1
         
-    return ("Showing email #{} of {}".format(1, selectedDF.shape[0]))
+    return (" of {}".format(selectedDF.shape[0]))
+
+#------------------------------------------------------------#
+# Update the text in the iframe                              #
+# depending on which class of data and number email selected #
+#------------------------------------------------------------#
 @app.callback(Output('email_text_iframe', 'srcDoc'),
-              [Input('showMe', 'value')])
-def update_displayed_email_text(input1):
+              [Input('buttonSubmit', 'n_clicks')],
+              [State('showMe', 'value'),
+               State('inputEmailNumber', 'value')])
+def update_displayed_email_text(nClicks, inputDF, inputEmailNumber):
+    print("Updating email text")
     global resultsDF_tp
     global resultsDF_tn
     global resultsDF_fn
     global resultsDF_fp
+    global selectedDF
     global emailPointer
     
-    if input1 == 'truePositive':
-        selectedDF = resultsDF_tp
-    elif input1 == 'falsePositive':
-        selectedDF = resultsDF_fp
-    elif input1 == 'falseNegative':
-        selectedDF = resultsDF_fn
-    elif input1 == 'trueNegative':
-        selectedDF = resultsDF_tn
-        
+    selectedDF = chooseDF(inputDF)
+
+    if (int(inputEmailNumber) > selectedDF.shape[0]):
+        emailPointer = 1
+    else:
+        emailPointer = int(inputEmailNumber)
+    
     highlightedEmailSubject = highlightTerms(selectedDF.iloc[(emailPointer - 1)].subject, visibleTermsList)
     highlightedEmailBody = highlightTerms(selectedDF.iloc[(emailPointer - 1)].body, visibleTermsList)
     return(formatEmail(highlightedEmailSubject, highlightedEmailBody))
-           
+
+#---------------------------------------------------------#
+# Refresh the bar chart values based on the current email #
+#---------------------------------------------------------#
+@app.callback(Output('bar-chart', 'figure'),
+              [Input('buttonSubmit', 'n_clicks')],
+              [State('showMe', 'value'),
+               State('inputEmailNumber', 'value')])
+def updateBarChart(n_clicks, chosenDF, myEmailNumber):
+    #I'm not actually using n_clicks
+    print("Updating Bar Chart")
+    global selectedDF
+    global emailPointer
+
+    selectDF = chooseDF(chosenDF)
+    emailPointer = int(myEmailNumber)
+    
+    subjectPlusBody = (selectedDF.iloc[(emailPointer -1)].subject + " " + selectedDF.iloc[(emailPointer - 1)].body)
+    newFigure = updateBarChartData(subjectPlusBody)
+    return (newFigure)
+
+
 if __name__ == '__main__':
     app.run_server(debug=True)
 
     
+                

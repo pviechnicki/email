@@ -16,6 +16,7 @@ import dash_html_components as html
 snowballStemmer = SnowballStemmer("english", ignore_stopwords=True)
 myTokenizer = WhitespaceTokenizer()
 
+
 #-------------------------------------------------------------------------#
 # Count number of tokens in text string when current tokenizer is applied
 #-------------------------------------------------------------------------#
