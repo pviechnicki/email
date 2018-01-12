@@ -80,8 +80,15 @@ def updateBarChartData(currentEmail):
             )
         ],
         'layout': go.Layout(
-            xaxis= {'title': 'Occurrences per 1000 word tokens', 'autorange': True},
-            yaxis= {'type': 'category', 'autorange': True},
+            xaxis= {
+                'title': 'Occurrences per 1000 word tokens',
+                'autorange': True
+            },
+            yaxis= {
+                'type': 'category',
+                'autorange': True,
+                'ticksuffix': '  ',
+                'categoryorder': 'category descending'},
             width=500,
             height=500,
             title='Most Informative Terms',
@@ -211,17 +218,26 @@ app.layout = html.Div(children = [
                     html.Td(html.Button(id='buttonSubmit', children="Submit")),
                 ]) #tr
             ]), #tableJumpTo
+            html.P("Display N terms/features:"),
+            dcc.Slider(
+                id = 'sliderVisibleTerms',
+                min = 3,
+                max = 30,
+                value = 10,
+                step = None,
+                marks = {str(num): str(num) for num in range(1,30)}
+            ),
             html.Div(id="text_div", children=[
                 html.Iframe(
                     id = 'email_text_iframe',
                     sandbox='',
                     srcDoc = formatEmail(highlightedEmailSubject,
                                          highlightedEmailBody),
-                    style = {'width': '450px', 'height': '200px'}
+                    style = {'width': '550px', 'height': '200px'}
                 )
-            ], style= {'height':'200px'})
+            ], style= {'height':'200px', 'padding-top': '20px'})
         ]), #holder div
-    ]), 
+    ]),
     html.Div(id="graph_div", className = "six columns", children=[
         dcc.Graph(
             id='bar-chart',
@@ -252,8 +268,14 @@ app.layout = html.Div(children = [
                     )
                 ],
                 'layout': go.Layout(
-                    xaxis= {'title': 'Occurrences per 1000 word tokens', 'autorange': True},
-                    yaxis= {'type': 'category', 'autorange': True},
+                    xaxis= {
+                        'title': 'Occurrences per 1000 word tokens',
+                        'autorange': True},
+                    yaxis= {
+                        'type': 'category',
+                        'autorange': True,
+                        'ticksuffix': '  ',
+                        'categoryorder': 'category descending'},
                     width=500,
                     height=500,
                     title='Most Informative Terms',
@@ -295,8 +317,9 @@ def update_df_selection(input1):
 @app.callback(Output('email_text_iframe', 'srcDoc'),
               [Input('buttonSubmit', 'n_clicks')],
               [State('showMe', 'value'),
-               State('inputEmailNumber', 'value')])
-def update_displayed_email_text(nClicks, inputDF, inputEmailNumber):
+               State('inputEmailNumber', 'value'),
+               State('sliderVisibleTerms', 'value')])
+def update_displayed_email_text(nClicks, inputDF, inputEmailNumber, numTerms):
     print("Updating email text")
     global resultsDF_tp
     global resultsDF_tn
@@ -304,8 +327,14 @@ def update_displayed_email_text(nClicks, inputDF, inputEmailNumber):
     global resultsDF_fp
     global selectedDF
     global emailPointer
-    
+    global visibleTermsList
+    global informativeTerms
+
+    #Switch to selected type of emails, true positive, false pos, etc
     selectedDF = chooseDF(inputDF)
+
+    #Refresh visible terms list to number set by slider
+    visibleTermsList = list(informativeTerms['feature'].iloc[0:numTerms])
 
     if (int(inputEmailNumber) > selectedDF.shape[0]):
         emailPointer = 1
@@ -322,15 +351,21 @@ def update_displayed_email_text(nClicks, inputDF, inputEmailNumber):
 @app.callback(Output('bar-chart', 'figure'),
               [Input('buttonSubmit', 'n_clicks')],
               [State('showMe', 'value'),
-               State('inputEmailNumber', 'value')])
-def updateBarChart(n_clicks, chosenDF, myEmailNumber):
+               State('inputEmailNumber', 'value'),
+               State('sliderVisibleTerms', 'value')])
+def updateBarChart(n_clicks, chosenDF, myEmailNumber, numTerms):
     #I'm not actually using n_clicks
     print("Updating Bar Chart")
     global selectedDF
     global emailPointer
+    global visibleTermsList
+    global informativeTerms
 
     selectDF = chooseDF(chosenDF)
     emailPointer = int(myEmailNumber)
+
+    #Update the list of visible terms to show in graph based on slider
+    visibleTermsList = list(informativeTerms['feature'].iloc[0:numTerms])
     
     subjectPlusBody = (selectedDF.iloc[(emailPointer -1)].subject + " " + selectedDF.iloc[(emailPointer - 1)].body)
     newFigure = updateBarChartData(subjectPlusBody)
