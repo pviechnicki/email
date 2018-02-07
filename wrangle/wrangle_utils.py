@@ -9,45 +9,53 @@ from Crypto import Random
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
 
+class AESCipher:
+	'''AES Cipher Class'''
+	def __init__( self, key ):
+		self.key = key.encode('utf-8')
+		#hashlib.sha256(key.encode('utf-8')).digest()
+
+	def decrypt( self, enc ):
+	   	# enc = enc.decode('utf8')  
+		# first 32 bytes are salt
+		salt = enc[:32]
+	   	# generate password using key and salt, 32 block size, 1000 iters   
+		password = PBKDF2(self.key, salt, 32, 1000)
+		# take first 32 bytes as the key
+		keyBytes = password[:32]
+		# use key and first 16 of password for the IV
+		cipher = AES.new(keyBytes, AES.MODE_CBC, password[:16] )
+		#return unpad(cipher.decrypt( enc[32:] ))
+		# return unpad(cipher.decrypt(enc[32:]))
+		return cipher.decrypt(enc[32:])
 
 def irm_decrypt(file_name, directory):
 	''' 
 	decrypts file from file path name and returns decrypted json file
 	'''
-	unpad = lambda s : s[0:-s[-1]]
 
-	class AESCipher:
+	#Make sure the input is a zip file aes encryption
+	if (file_name[-8:] == '.zip.aes'):
 
-	    def __init__( self, key ):
-	        self.key = key.encode('utf-8')
-	        #hashlib.sha256(key.encode('utf-8')).digest()
+		unpad = lambda s : s[0:-s[-1]]
 
-	    def decrypt( self, enc ):
-	        # enc = enc.decode('utf8')        
-	        # first 32 bytes are salt
-	        salt = enc[:32]
-	        # generate password using key and salt, 32 block size, 1000 iters        
-	        password = PBKDF2(self.key, salt, 32, 1000)
-	        # take first 32 bytes as the key
-	        keyBytes = password[:32]
-	        # use key and first 16 of password for the IV
-	        cipher = AES.new(keyBytes, AES.MODE_CBC, password[:16] )
-	        #return unpad(cipher.decrypt( enc[32:] ))
-	        # return unpad(cipher.decrypt(enc[32:]))
-	        return cipher.decrypt(enc[32:])
 
-	cipher = AESCipher('Password1')
-	sys.path.insert(0, directory)
-	# with zipfile.ZipFile(directory + '//' + file_name) as z:
-	with open(directory + '//' + file_name, 'rb') as f:
-		txt = f.read()
+		cipher = AESCipher('Password1')
+		sys.path.insert(0, directory)
+		# with zipfile.ZipFile(directory + '//' + file_name) as z:
+		with open(directory + '//' + file_name, 'rb') as f:
+			txt = f.read()
 
-	decrypted_zip = cipher.decrypt(txt)
+		decrypted_zip = cipher.decrypt(txt)
 
-	with open('outfile.zip', 'wb') as outfile:
-		outfile.write(decrypted_zip)
+		with open('outfile.zip', 'wb') as outfile:
+			outfile.write(decrypted_zip)
 
-	return decrypted_zip
+		return decrypted_zip
+	else: 
+		sys.stderr.write("Warning: Unrecognized file type {} passed to irm_decrypt. Skipping.".format(fn))
+		return None
+
 
 
 
@@ -72,6 +80,18 @@ def parse_json_object(json_text):
 
 	return messageId, subject, attachment_count, sent_date, importance, body, sensitivity, org_unit
 
+def initialize_wrangle_config():
+	'''
+	Initialize lookup tables and other config stuff one time, not for each file
+	'''
+	configContainer = {} #Empty dict to hold configuration info
+	with open('PII_words.yaml', 'r') as P:
+		PII_words_file = yaml.load(P)
+
+		configContainer['PII_words'] = PII_words_file['PII']
+
+	return configContainer
+
 def remove_non_ascii_characters(body):
 	'''
 	takes body of email and removes non-ascii characters
@@ -81,28 +101,24 @@ def remove_non_ascii_characters(body):
 
 	return ''.join([i if ord(i)<128 else '' for i in body])
 
-def filter_sensitive_emails(body):
+def containsPII(emailText, configContainer):
 	'''
 	tests for PII and returns either a variable called Sensitive to indicate whether the email contains sensitive information
 	'''
-	with open('C:/Users/ComputerA/email_marker/REPO/wrangle/PII_words.yaml', 'r') as P:
-		PII_words_file = yaml.load(P)
+	result = False
 
-	PII_words = PII_words_file['PII']
-	SSN = re.search(r'\d\d\d-\d\d-\d\d\d\d', body)
+	SSN = re.search(r'\d\d\d-\d\d-\d\d\d\d', emailText)
 
 	if SSN:
-		Sensitive = True
+		result = True
 	else:
-		for item in PII_words:
-			PII = re.search(item, body)
+		for item in configContainer['PII_words']:
+			PII = re.search(item, emailText)
 			if PII:
-				Sensitive = True
+				result = True
 				break
-			else:
-				Sensitive = False
-
-	return Sensitive
+	
+	return result
 
 def create_df(messageId, subject, attachment_count, sent_date, importance, body, sensitivity, org_unit, email_df, Sensitive, index):
 	'''

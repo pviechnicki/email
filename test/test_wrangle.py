@@ -3,12 +3,15 @@ import zipfile
 import sys
 import simplejson as json
 import pandas as pd
-sys.path.insert(0, 'C:/Users/ComputerA/email_marker/REPO/wrangle')
+import os
+sys.path.append('../wrangle')
 from wrangle_utils import irm_decrypt
 from wrangle_utils import parse_json_object
 from wrangle_utils import remove_non_ascii_characters
-from wrangle_utils import filter_sensitive_emails
+from wrangle_utils import containsPII
 from wrangle_utils import create_df
+from wrangle_utils import initialize_wrangle_config
+from io import BytesIO
 
 '''
 tests all functions in wrangle.utils
@@ -21,25 +24,24 @@ class TestWrangleFuncs(unittest.TestCase):
 		tests that if you feed the function an encrypted zip it returns a decrypted zip with 4 json files
 		'''
 
-		sys.path.insert(0,'C:/Users/ComputerA/email_marker/REPO/data/Input/EncrypyedZip_Test')
-
-		test_directory = 'C:/Users/ComputerA/email_marker/REPO/data/Input/EncrypyedZip_Test'
+		test_directory = '../data/Input/EncryptedZip_Test'
 		test_zipfilename = '2018-01-23Z00.56.06.192.zip.aes'
 
 		decrypted_zip = irm_decrypt(test_zipfilename, test_directory)
-		with zipfile.ZipFile('outfile.zip') as z:
-				json_files = [fn for fn in z.namelist()]
-		self.assertEqual(json_files[0][-5:],'.json')
-		self.assertEqual(len(json_files),4)
+		fileLikeZip = BytesIO(decrypted_zip)
+		with zipfile.ZipFile(fileLikeZip) as z:
+			filenames =   [fn for fn in z.namelist()]
+			for filename in filenames:
+				self.assertEqual(filename[-5:],'.json', "Unrecognized file format {}: expecting .json".format(filename))
+			self.assertEqual(len(filenames),4, "Expecting 4 files, found {}".format(len(filenames)))
 
 	def test_parse_json_object(self):
 
 		'''
-		tests that if you pass a json string it returns the correct parts for message id, subject, attachment count, sent dat, importance, body, sensitivity, and org_unit
+		tests that if you pass a email in the form of a json string 
+		it returns the correct parts for message id, subject, attachment count, sent dat, importance, body, sensitivity, and org_unit
 		'''
-
-		sys.path.insert(0,'C:/Users/ComputerA/email_marker/REPO/data/Input/JSON_Test')
-		test_json_filename = 'C:/Users/ComputerA/email_marker/REPO/data/Input/JSON_Test/TEST.json'
+		test_json_filename = '../data/Input/JSON_Test/TEST.json'
 		with open(test_json_filename) as f:
 			test_json_file = f.read()
 
@@ -54,15 +56,25 @@ class TestWrangleFuncs(unittest.TestCase):
 		tests that if you feed the function a non-ascii character it will return an empty string
 		'''
 		self.assertEqual(remove_non_ascii_characters('ð'),'')
-		self.assertEqual(remove_non_ascii_characters('hello world'), 'hello world')
+		
+	def test_dont_remove_ascii_characters(self):
+		'''
+		Converse: checks that you're not removing any ascii characters by accident
+		Inspiration from https://stackoverflow.com/questions/5891453/is-there-a-python-library-that-contains-a-list-of-all-the-ascii-characters/5891509
+		'''
+		all_ascii_chars = ''.join([chr(i) for i in range(128)])
+		self.assertEqual(remove_non_ascii_characters(all_ascii_chars), all_ascii_chars)
 		
 
-	def test_filter_sensitive_emails(self):
+	def test_containsPII(self):
 		'''
 		tests that if text contains words 'birth date' then the function will return true and if the text is hello world that the function will return false
 		'''
-		self.assertTrue(filter_sensitive_emails('birth date'))
-		self.assertFalse(filter_sensitive_emails('hello world'))
+		os.chdir("..\wrangle")
+		wrangleConfig = initialize_wrangle_config()
+
+		self.assertTrue(containsPII('birth date', wrangleConfig))
+		self.assertFalse(containsPII('hello world', wrangleConfig))
 
 	def test_create_df(self):
 		'''

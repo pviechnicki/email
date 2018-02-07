@@ -1,16 +1,18 @@
 import os
 import yaml
 import sys
-sys.path.insert(0, 'C:/Users/ComputerA/email_marker/REPO/data/Input/DevEncrypted_Test')
-sys.path.insert(0, 'C:/Users/ComputerA/email_marker/REPO/data/Output')
 import pandas as pd
 import zipfile
 import simplejson as json
 from wrangle_utils import irm_decrypt
 from wrangle_utils import parse_json_object
 from wrangle_utils import remove_non_ascii_characters
-from wrangle_utils import filter_sensitive_emails
+from wrangle_utils import containsPII
 from wrangle_utils import create_df
+from wrangle_utils import initialize_wrangle_config #Do all the initialization of lookup tables one time
+import getopt
+from io import BytesIO #needed to read in-memory version of zip file
+
 
 '''
 Iterates through directory of encrypted zip files.
@@ -32,47 +34,71 @@ Write Master_df to a csv in output data folder
 
 '''
 
-directory = 'C:/Users/ComputerA/email_marker/REPO/data/Input/DevEncrypted_Test'
+def usage():
+	sys.stdout.write("Usage: python wrangle.py -d|--directory= <directory name with zipped email files -h|?|--help")	
 
-with open('column_titles_json.yaml', 'r') as f:
-	column_titles = yaml.load(f)
+def wrangle():
 
-df_columns = column_titles['df_columns']
-
-Master_df = pd.DataFrame(columns= df_columns)
-
-for fn in os.listdir(directory):
+	#Get and parse command line args
 	try:
-		assert fn[-8:] == '.zip.aes'
-	
-		decrypyed_zip = irm_decrypt(fn, directory)
+		opts, args = getopt.getopt(sys.argv[1:], "d:h?", ["--directory=", "--help"])
+	except getopt.GetoptError as err:
+		#Exit if can't parse args
+		usage()	
+		sys.exit(2)
+	for o, a in opts:
+		if (o == '-h' or o == '-?'):
+			usage()
+			exit(0)
+		elif o in ("-d", '--directory'):
+			dataDirectory = a
+		else:
+			assert False, "wrangle.py unhandled option: {}".format(o)
+
+	#Initialize wrangle config
+	wrangleConfig = initialize_wrangle_config()
+
+	with open('column_titles_json.yaml', 'r') as f:
+		column_titles = yaml.load(f)
+
+		df_columns = column_titles['df_columns']
+
+		Master_df = pd.DataFrame(columns= df_columns)
+
+	for fn in os.listdir(dataDirectory):
+
+		decrypted_zip = irm_decrypt(fn, dataDirectory)
+		fileLikeZip = BytesIO(decrypted_zip)
+		
 		email_df = pd.DataFrame(columns = df_columns)
 		try:
 			assert email_df.empty == True
-
-			with zipfile.ZipFile('outfile.zip') as z:
-				json_files = [fn for fn in z.namelist()]
-				for index, fn in enumerate(json_files):
-					try:
-						assert fn[-5:] == '.json'
-						with z.open(fn) as f:
-							json_str = f.read()
-							json_text = json.loads(json_str)
-							messageId, subject, attachment_count, sent_date, importance, body, sensitivity, org_unit = parse_json_object(json_text)
-							body = remove_non_ascii_characters(body)
-							Sensitive = filter_sensitive_emails(body)
-							email_df = create_df(messageId, subject, attachment_count, sent_date, importance, body, sensitivity, org_unit, email_df, Sensitive, index)
-
-					except:
-						print('ERROR: FILE INSIDE ZIP WAS NOT A JSON')
-	
 		except:
-			print('ERROR: email_df was not an empty DataFrame')
-		
+			sys.stderr.write('wrangle.py ERROR: email_df was not an empty DataFrame')
+			return False
 
-		Master_df = Master_df.append(email_df)
+		with zipfile.ZipFile(fileLikeZip) as z:
+			json_files = [fn for fn in z.namelist()]
+			for index, fn in enumerate(json_files):
+				try:
+					assert fn[-5:] == '.json'
+				except:
+					sys.stderr.write('wrangle.py ERROR: FILE {} INSIDE ZIP WAS NOT A JSON'.format(fn))
+					return False
 
-	except:
-		print('ERROR: FILE IN DATA DIRECTORY WAS NOT AN ENCRYPTED ZIP')
+				json_str = z.read(fn)
+				json_text = json.loads(json_str)
+				messageId, subject, attachment_count, sent_date, importance, body, sensitivity, org_unit = parse_json_object(json_text)
+				body = remove_non_ascii_characters(body)
+				Sensitive = filter_sensitive_emails(body, wrangleConfig)
+				email_df = create_df(messageId, subject, attachment_count, sent_date, importance, body, sensitivity, org_unit, email_df, Sensitive, index)
+				
 
-Master_df.to_csv('C:/Users/ComputerA/email_marker/REPO/data/output/Master_df.csv')	
+			Master_df = Master_df.append(email_df)
+
+	Master_df.to_csv('Master_df.csv')	
+
+	return True
+
+if __name__ == "__main__":
+	wrangle()
