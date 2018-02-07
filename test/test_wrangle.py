@@ -77,6 +77,5 @@ class TestWrangleFuncs(unittest.TestCase):
 		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM',test_email_df,False,0)['sensitivity'].iloc[0],'Sensitivity Personal')
 
 
-
 if __name__ == '__main__':
 	unittest.main()
