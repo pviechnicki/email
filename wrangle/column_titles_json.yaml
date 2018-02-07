@@ -1,0 +1,11 @@
+---
+df_columns:
+ - messageId
+ - subject
+ - sent_date
+ - importance
+ - body
+ - sensitivity
+ - attachment_count
+ - org_unit
+...

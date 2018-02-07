@@ -1,6 +1,6 @@
 import pandas as pd 
 import sys
-sys.path.insert(0,'C:/Users/ComputerA/email_marker/data/Output')
+sys.path.insert(0,'C:/Users/ComputerA/email_marker/REPO/data/Output')
 from model_utils import remove_empty_emails
 from model_utils import create_train_test
 from model_utils import preprocess
@@ -17,7 +17,7 @@ from model_utils import show_most_informative_features
 
 
 
-email_df = pd.read_excel('C:/Users/ComputerA/email_marker/data/Output/email_df.xlsx', sheetname = 'Sheet1')
+email_df = pd.read_excel('C:/Users/ComputerA/email_marker/REPO/data/Output/email_df.xlsx', sheetname = 'Sheet1')
 
 #creates sample df
 ## removes empty emails

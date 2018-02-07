@@ -91,7 +91,7 @@ def filter_sensitive_emails(body):
 	'''
 	tests for PII and returns either a variable called Sensitive to indicate whether the email contains sensitive information
 	'''
-	with open('C:/Users/ComputerA/email_marker/src/wrangle/PII_words.yaml', 'r') as P:
+	with open('C:/Users/ComputerA/email_marker/REPO/wrangle/PII_words.yaml', 'r') as P:
 		PII_words_file = yaml.load(P)
 
 	PII_words = PII_words_file['PII']

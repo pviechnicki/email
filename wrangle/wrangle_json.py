@@ -1,8 +1,8 @@
 import os
 import yaml
 import sys
-sys.path.insert(0, 'C:/Users/ComputerA/email_marker/data/input/DevEncrypted_Test')
-sys.path.insert(0, 'C:/Users/ComputerA/email_marker/data/Output')
+sys.path.insert(0, 'C:/Users/ComputerA/email_marker/REPO/data/Input/DevEncrypted_Test')
+sys.path.insert(0, 'C:/Users/ComputerA/email_marker/REPO/data/Output')
 import pandas as pd
 import zipfile
 import simplejson as json
@@ -24,7 +24,7 @@ For each zip file:
 
 '''
 
-directory = 'C:/Users/ComputerA/email_marker/data/input/DevEncrypted_Test'
+directory = 'C:/Users/ComputerA/email_marker/REPO/data/Input/DevEncrypted_Test'
 
 with open('column_titles_json.yaml', 'r') as f:
 	column_titles = yaml.load(f)
