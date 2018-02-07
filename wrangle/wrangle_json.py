@@ -6,11 +6,11 @@ sys.path.insert(0, 'C:/Users/ComputerA/email_marker/REPO/data/Output')
 import pandas as pd
 import zipfile
 import simplejson as json
-from wrangle_utils_json import irm_decrypt
-from wrangle_utils_json import parse_json_object
-from wrangle_utils_json import remove_non_ascii_characters
-from wrangle_utils_json import filter_sensitive_emails
-from wrangle_utils_json import create_df
+from wrangle_utils import irm_decrypt
+from wrangle_utils import parse_json_object
+from wrangle_utils import remove_non_ascii_characters
+from wrangle_utils import filter_sensitive_emails
+from wrangle_utils import create_df
 
 '''
 Iterates through directory of encrypted zip files.
