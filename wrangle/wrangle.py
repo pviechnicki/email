@@ -18,9 +18,17 @@ Iterates through directory of encrypted zip files.
 For each zip file:
 	Step 1: Create empty dataframe (Master_df)
 	Step 2: Decrypt zip file
+	Step 3: Create empty dataframe to contain contents of zip file (email_df)
 	Step 3: Unzip file
 	Step 4: Iterate through each file in zip file. For each file in zip...
-		1) 
+		1) load as json string
+		2) parse out relevant fiels (message id, subject, attachment count, sent date, importance, body sensitivity, org unit)
+		3) remove non ascii characters from the body of the email
+		4) discard any emails with birth dates or SSNs
+		5) append to email_df
+	Step 5: Append email_df to Master_df
+
+Write Master_df to a csv in output data folder
 
 '''
 
@@ -67,4 +75,4 @@ for fn in os.listdir(directory):
 	except:
 		print('ERROR: FILE IN DATA DIRECTORY WAS NOT AN ENCRYPTED ZIP')
 
-Master_df.to_csv('C:/Users/ComputerA/email_marker/data/output/Master_df.csv')	
+Master_df.to_csv('C:/Users/ComputerA/email_marker/REPO/data/output/Master_df.csv')	
