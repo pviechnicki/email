@@ -70,7 +70,15 @@ def parse_json_object(json_text):
 	attachment_count = json_text['metadata']['attachments']
 	sent_date = json_text['metadata']['message']['sentDate']
 	importance = json_text['metadata']['message']['importance']
-	org_unit = json_text['metadata']['users'][1]['orgUnit']
+	user_role_list = json_text['metadata']['users']
+	try:
+		from_dict = next(item for item in user_role_list if item["userRoles"] == ['From'])
+	except StopIteration:
+		try:
+			from_dict = next(item for item in user_role_list if item["userRoles"] == ['From', 'Cc'])
+		except:
+			from_dict = next(item for item in user_role_list if item["userRoles"] == ['From', 'To'])
+	org_unit = from_dict['orgUnit']
 	body = json_text['metadata']['message']['plainTextBody']
 	body = body.replace('\r\n','')
 	sensitivity = str(next((p.values() for p in properties_list if p.get('key')== 'Sensitivity')))
