@@ -90,6 +90,9 @@ def initialize_wrangle_config():
 
 		configContainer['PII_words'] = PII_words_file['PII']
 
+	with open('column_titles_json.yaml', 'r') as f:
+		configContainer['column_titles'] = yaml.load(f)
+
 	return configContainer
 
 def remove_non_ascii_characters(body):

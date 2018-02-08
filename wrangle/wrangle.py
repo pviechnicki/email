@@ -35,13 +35,13 @@ Write Master_df to a csv in output data folder
 '''
 
 def usage():
-	sys.stdout.write("Usage: python wrangle.py -d|--directory= <directory name with zipped email files -h|?|--help")	
+	sys.stdout.write("Usage: python wrangle.py [-d|--directory= <directory name with zipped email files>] [-n|--number= <number of output emails requested>] [-h|?|--help]")	
 
 def wrangle():
 
 	#Get and parse command line args
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], "d:h?", ["--directory=", "--help"])
+		opts, args = getopt.getopt(sys.argv[1:], "d:n:h?", ["--directory=", "--number=", "--help"])
 	except getopt.GetoptError as err:
 		#Exit if can't parse args
 		usage()	
@@ -50,48 +50,63 @@ def wrangle():
 		if (o == '-h' or o == '-?'):
 			usage()
 			exit(0)
-		elif o in ("-d", '--directory'):
+		elif o in ('-d', '--directory'):
 			dataDirectory = a
+		elif o in ('-n', '--number'):
+			try:
+				numberRequested = int(a)
+			except:
+				sys.stder.write("Argument to -n|--number= option must be integer.")
+				sys.exit(2)
 		else:
 			assert False, "wrangle.py unhandled option: {}".format(o)
 
 	#Initialize wrangle config
 	wrangleConfig = initialize_wrangle_config()
 
-	with open('column_titles_json.yaml', 'r') as f:
-		column_titles = yaml.load(f)
+	#Make copy of column names in local list
+	df_columns = wrangleConfig['column_titles']['df_columns']
 
-		df_columns = column_titles['df_columns']
+	Master_df = pd.DataFrame(columns=df_columns)
 
-		Master_df = pd.DataFrame(columns= df_columns)
+	#Set email counter to 0
+	emailCounter = 0
 
 	for fn in os.listdir(dataDirectory):
+		#Only open number of files neceesary for email requested
+		if (emailCounter > numberRequested):
+			break
+		else:
 
-		decrypted_zip = irm_decrypt(fn, dataDirectory)
-		fileLikeZip = BytesIO(decrypted_zip)
+			decrypted_zip = irm_decrypt(fn, dataDirectory)
+			fileLikeZip = BytesIO(decrypted_zip)
 		
-		email_df = pd.DataFrame(columns = df_columns)
-		try:
-			assert email_df.empty == True
-		except:
-			sys.stderr.write('wrangle.py ERROR: email_df was not an empty DataFrame')
-			return False
+			email_df = pd.DataFrame(columns = df_columns)
+			try:
+				assert email_df.empty == True
+			except:
+				sys.stderr.write('wrangle.py ERROR: email_df was not an empty DataFrame')
+				return False
 
-		with zipfile.ZipFile(fileLikeZip) as z:
-			json_files = [fn for fn in z.namelist()]
-			for index, fn in enumerate(json_files):
-				try:
-					assert fn[-5:] == '.json'
-				except:
-					sys.stderr.write('wrangle.py ERROR: FILE {} INSIDE ZIP WAS NOT A JSON'.format(fn))
-					return False
+			with zipfile.ZipFile(fileLikeZip) as z:
+				json_files = [fn for fn in z.namelist()]
+				for index, fn in enumerate(json_files):
+					try:
+						assert fn[-5:] == '.json'
+					except:
+						sys.stderr.write('wrangle.py ERROR: FILE {} INSIDE ZIP WAS NOT A JSON'.format(fn))
+						return False
 
-				json_str = z.read(fn)
-				json_text = json.loads(json_str)
-				messageId, subject, attachment_count, sent_date, importance, body, sensitivity, org_unit = parse_json_object(json_text)
-				body = remove_non_ascii_characters(body)
-				Sensitive = filter_sensitive_emails(body, wrangleConfig)
-				email_df = create_df(messageId, subject, attachment_count, sent_date, importance, body, sensitivity, org_unit, email_df, Sensitive, index)
+					emailCounter += 1
+					
+					#Only write output if we're below the number of emails requested
+					if (emailCounter <= numberRequested):
+						json_str = z.read(fn)
+						json_text = json.loads(json_str)
+						messageId, subject, attachment_count, sent_date, importance, body, sensitivity, org_unit = parse_json_object(json_text)
+						body = remove_non_ascii_characters(body)
+						Sensitive = containsPII(body, wrangleConfig)
+						email_df = create_df(messageId, subject, attachment_count, sent_date, importance, body, sensitivity, org_unit, email_df, Sensitive, index)
 				
 
 			Master_df = Master_df.append(email_df)
