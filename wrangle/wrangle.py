@@ -4,6 +4,7 @@ import sys
 import pandas as pd
 import zipfile
 import simplejson as json
+import math
 from wrangle_utils import irm_decrypt
 from wrangle_utils import parse_json_object
 from wrangle_utils import remove_non_ascii_characters
@@ -52,6 +53,10 @@ def wrangle():
 			exit(0)
 		elif o in ('-d', '--directory'):
 			dataDirectory = a
+			if o not in ('n', '--number'):
+				print('THIS IS HAPPENING')
+				numberRequested = math.inf
+
 		elif o in ('-n', '--number'):
 			try:
 				numberRequested = int(a)
@@ -111,7 +116,7 @@ def wrangle():
 
 			Master_df = Master_df.append(email_df)
 
-	Master_df.to_csv('Master_df.csv')	
+	Master_df.to_csv('C:/Users/embicks/Documents/DOTCE/email_marker/email/data/Output/Master_df.csv')	
 
 	return True
 

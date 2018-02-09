@@ -102,22 +102,22 @@ def updateBarChartData(currentEmail):
 # Prepare input data                                   #
 #Load results from classifier notebook
 #------------------------------------------------------#
-with open('../classify/totalTermCounts.pyc', 'rb') as f:
+with open('C:/Users/embicks/Documents/DOTCE/email_marker/email/data/Output/totalTermCounts.pyc', 'rb') as f:
     totalTermCounts = pickle.load(f)
 f.close()
-with open('../classify/informativeTerms.pyc', 'rb') as f:
+with open('C:/Users/embicks/Documents/DOTCE/email_marker/email/data/Output/informativeTerms.pyc', 'rb') as f:
     informativeTerms = pickle.load(f)
 f.close()
-with open('../classify/classifierStats.pyc', 'rb') as f:
+with open('C:/Users/embicks/Documents/DOTCE/email_marker/email/data/Output/classifierStats.pyc', 'rb') as f:
     classifierStats = pickle.load(f)
 f.close()
-with open('../classify/classifierTestResults.pyc', 'rb') as f:
+with open('C:/Users/embicks/Documents/DOTCE/email_marker/email/data/Output/classifierTestResults.pyc', 'rb') as f:
     classifierTestResults = pickle.load(f)
 f.close()
-with open('../classify/feature_counts_training.pyc', 'rb') as f:
+with open('C:/Users/embicks/Documents/DOTCE/email_marker/email/data/Output/feature_counts_training.pyc', 'rb') as f:
     feature_counts_training = pickle.load(f)
 f.close()
-with open('../classify/feature_counts_test.pyc', 'rb') as f:
+with open('C:/Users/embicks/Documents/DOTCE/email_marker/email/data/Output/feature_counts_test.pyc', 'rb') as f:
     feature_counts_test = pickle.load(f)
 f.close()
     
@@ -136,14 +136,14 @@ responseTypes = ['truePositive', 'trueNegative', 'falsePositive', 'falseNegative
 # Store top 10 terms in list for easy access                        #
 #-------------------------------------------------------------------#
 visibleTermsList = list(informativeTerms['feature'].iloc[0:10])
-selectedDF = resultsDF_tp
+selectedDF = resultsDF_tn
 numEmailsInSelectedDF = selectedDF.shape[0]
 emailPointer = 1
 
 #Highlight the terms in the email which are in the visible list
-highlightedEmailSubject = highlightTerms(resultsDF_tp.iloc[(emailPointer - 1)].subject, visibleTermsList)
-highlightedEmailBody = highlightTerms(resultsDF_tp.iloc[(emailPointer - 1)].body, visibleTermsList)
-subjectPlusBody = (resultsDF_tp.iloc[(emailPointer -1)].subject + " " + resultsDF_tp.iloc[(emailPointer - 1)].body)
+highlightedEmailSubject = highlightTerms(resultsDF_tn.iloc[(emailPointer - 1)].subject, visibleTermsList)
+highlightedEmailBody = highlightTerms(resultsDF_tn.iloc[(emailPointer - 1)].body, visibleTermsList)
+subjectPlusBody = (resultsDF_tn.iloc[(emailPointer -1)].subject + " " + resultsDF_tn.iloc[(emailPointer - 1)].body)
 initialTextTokenLength = countTokens(subjectPlusBody)
 initialTextTermFreqs = countFreqs(visibleTermsList, subjectPlusBody)
 

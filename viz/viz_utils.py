@@ -67,31 +67,59 @@ def generateAccuracyTable(myStats):
 # Return rows and cells for classifier truth table #
 #--------------------------------------------------#
 def generateTruthTable(myStats):
-    return html.Table([
-        html.Tr([
-            html.Th(),
-            html.Th(),
-            html.Th("Ground Truth Value", style={'colspan': '2'})
-        ]),
-        html.Tr([
-            html.Th(),
-            html.Th(),
-            html.Th("Personal"),
-            html.Th("Not Personal")
-        ]),
-        html.Tr([
-            html.Th(children="Classifier Assigned", style={'rowSpan': 2}),
-            html.Th("Personal"),
-            html.Td(myStats['truePositive']),
-            html.Td(myStats['falsePositive'])
-        ]),
-        html.Tr([
-            html.Th(),
-            html.Th("Not Personal"),
-            html.Td(myStats['falseNegative']),
-            html.Td(myStats['trueNegative'])
+
+    try:
+        return html.Table([
+            html.Tr([
+                html.Th(),
+                html.Th(),
+                html.Th("Ground Truth Value", style={'colspan': '2'})
+            ]),
+            html.Tr([
+                html.Th(),
+                html.Th(),
+                html.Th("Personal"),
+                html.Th("Not Personal")
+            ]),
+            html.Tr([
+                html.Th(children="Classifier Assigned", style={'rowSpan': 2}),
+                html.Th("Personal"),
+                html.Td(myStats['truePositive']),
+                html.Td(myStats['falsePositive'])
+            ]),
+            html.Tr([
+                html.Th(),
+                html.Th("Not Personal"),
+                html.Td(myStats['falseNegative']),
+                html.Td(myStats['trueNegative'])
+            ])
         ])
-    ])
+    except KeyError:
+            return html.Table([
+            html.Tr([
+                html.Th(),
+                html.Th(),
+                html.Th("Ground Truth Value", style={'colspan': '2'})
+            ]),
+            html.Tr([
+                html.Th(),
+                html.Th(),
+                html.Th("Personal"),
+                html.Th("Not Personal")
+            ]),
+            html.Tr([
+                html.Th(children="Classifier Assigned", style={'rowSpan': 2}),
+                html.Th("Personal"),
+                # html.Td(myStats['truePositive']),
+                html.Td(myStats['falsePositive'])
+            ]),
+            html.Tr([
+                html.Th(),
+                html.Th("Not Personal"),
+                # html.Td(myStats['falseNegative']),
+                html.Td(myStats['trueNegative'])
+            ])
+        ])
 
 #-------------------------------------------------------------------------#
 # Using same stemmer and preprocessor definition as used in NB classifier #
