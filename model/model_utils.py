@@ -2,7 +2,6 @@ import pandas as pd
 import os
 import numpy as np
 import sys
-sys.path.append('C:\\Users\\ComputerA\\AppData\\Local\\Continuum\\Anaconda3\\envs\\dotce\\lib\\site-packages\\pyLDAvis')
 from sklearn.feature_extraction.text import TfidfVectorizer
 from collections import Counter
 from collections import defaultdict
@@ -10,7 +9,7 @@ import string
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem.snowball import SnowballStemmer
-from sklearn.cross_validation import train_test_split
+from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn import metrics
 import pickle
