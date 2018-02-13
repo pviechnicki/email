@@ -11,7 +11,7 @@ from model_utils import NB_results
 from model_utils import create_informative_terms
 import getopt
 
-
+#trying to re-add to git
 def usage():
 	sys.stdout.write("Usage: python model.py [-d|--directory= <top directory of the github repository where your directory yaml sits>] [-h|?|--help]")	
 

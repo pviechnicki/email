@@ -14,7 +14,7 @@ from sklearn.cross_validation import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn import metrics
 import pickle
-
+#trying to re-add to git
 def remove_empty_emails(email_df):
 	#Add rowid
 	email_df['rownum'] = range(0, len(email_df))
