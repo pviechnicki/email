@@ -67,7 +67,7 @@ def parse_json_object(json_text):
 	properties_list = json_text['metadata']['properties']
 	messageId = json_text['metadata']['message']['messageId']
 	subject = json_text['metadata']['message']['subject']
-	attachment_count = json_text['metadata']['attachments']
+	attachments = json_text['metadata']['attachments']
 	sent_date = json_text['metadata']['message']['sentDate']
 	importance = json_text['metadata']['message']['importance']
 	user_role_list = json_text['metadata']['users']
@@ -79,14 +79,40 @@ def parse_json_object(json_text):
 		except:
 			from_dict = next(item for item in user_role_list if item["userRoles"] == ['From', 'To'])
 	org_unit = from_dict['orgUnit']
+	try:
+		user_type = from_dict['userType']
+	except KeyError:
+		user_type = ''
+		sys.stderr.write('wrangle.py ERROR: userType not found in metadata')
+	try:
+		country = from_dict['country']
+	except KeyError:
+		country = ''
+		sys.stderr.write('wrangle.py ERROR: country not found in metadata')
+	try:
+		department = from_dict['department']
+	except KeyError:
+		department = ''
+		sys.stderr.write('wrangle.py ERROR: department not found in metadata')
+	try:
+		office = from_dict['office']
+	except KeyError:
+		office = ''
+		sys.stderr.write('wrangle.py ERROR: office not found in metadata')
+	try:	
+		division = from_dict['division']
+	except KeyError:
+		division = ''
+		sys.stderr.write('wrangle.py ERROR: division not found in metadata')	
 	body = json_text['metadata']['message']['plainTextBody']
 	body = body.replace('\r\n','')
 	sensitivity = str(next((p.values() for p in properties_list if p.get('key')== 'Sensitivity')))
 	sensitivity = sensitivity.replace('dict_values','')
 	sensitivity = ''.join(ch for ch in sensitivity if ch not in exclude)
 	sensitivity.strip()
+	is_transitory = str(next((p.values() for p in properties_list if p.get('key')== 'IsTransitory')))
 
-	return messageId, subject, attachment_count, sent_date, importance, body, sensitivity, org_unit
+	return messageId, subject, attachments, sent_date, importance, body, sensitivity, org_unit, user_type, country, department, office, division, is_transitory
 
 def initialize_wrangle_config():
 	'''
@@ -131,14 +157,13 @@ def containsPII(emailText, configContainer):
 	
 	return result
 
-def create_df(messageId, subject, attachment_count, sent_date, importance, body, sensitivity, org_unit, email_df, Sensitive, index):
+def create_df(messageId, subject, attachments, sent_date, importance, body, sensitivity, org_unit, user_type, country, department, office, division, is_transitory, email_df, Sensitive, index):
 	'''
 	Turns variables parsed from json object into dataframe if emails do not contain sensitive PII
 	'''
 	if Sensitive == False:
-		email_df.loc[index] = [messageId, subject, sent_date, importance, body, sensitivity, attachment_count, org_unit]
+		email_df.loc[index] = [messageId, subject, sent_date, importance, body, sensitivity, is_transitory, attachments, org_unit, user_type, country, department, office, division]
 	else: 
 		print('email removed due to sensitive information in the body')
 
 	return email_df
-
