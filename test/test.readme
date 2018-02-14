@@ -1,1 +1,6 @@
 Unit test files
+
+To run: 
+python -m unittest test_wrangle.py
+
+Look for any errors in output report - adjust accordingly.
