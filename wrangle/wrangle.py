@@ -13,6 +13,7 @@ from wrangle_utils import create_df
 from wrangle_utils import initialize_wrangle_config #Do all the initialization of lookup tables one time
 import getopt
 from io import BytesIO #needed to read in-memory version of zip file
+from wrangle_utils import directory_loader
 
 
 '''
@@ -55,8 +56,6 @@ def wrangle():
 			exit(0)
 		elif o in ('-d', '--directory'):
 			yaml_directory = a
-			sys.path.insert(0, yaml_directory)
-			from load_directories import directory_loader
 			input_directory, output_directory = directory_loader(yaml_directory)
 
 		elif o in ('-n', '--number'):

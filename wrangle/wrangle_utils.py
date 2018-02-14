@@ -8,6 +8,21 @@ from io import StringIO
 from Crypto import Random
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
+import yaml
+import os
+
+def directory_loader(yaml_directory):
+	myPath = os.path.normpath(yaml_directory + '//' + 'directories.yaml')
+	with open(myPath, 'r') as D:
+		directories_file = yaml.load(D)
+
+		input_directory = directories_file['Input']
+		output_directory = directories_file['Output']
+
+		input_directory = input_directory[0]
+		output_directory = output_directory[0]
+
+	return input_directory, output_directory
 
 class AESCipher:
 	'''AES Cipher Class'''
