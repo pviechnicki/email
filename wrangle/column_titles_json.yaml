@@ -8,6 +8,7 @@ df_columns:
  - sensitivity
  - is_transitory
  - attachments
+ - is_state
  - org_unit
  - user_type
  - country

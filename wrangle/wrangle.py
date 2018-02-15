@@ -116,13 +116,14 @@ def wrangle():
 					if (emailCounter <= numberRequested):
 						json_str = z.read(fn)
 						json_text = json.loads(json_str)
-						messageId, subject, attachments, sent_date, importance, body, sensitivity, org_unit, user_type, country, department, office, division, is_transitory = parse_json_object(json_text)
+						messageId, subject, attachments, sent_date, importance, body, sensitivity, org_unit, is_state, user_type, country, department, office, division, is_transitory = parse_json_object(json_text)
 						body = remove_non_ascii_characters(body)
 						Sensitive = containsPII(body, wrangleConfig)
-						email_df = create_df(messageId, subject, attachments, sent_date, importance, body, sensitivity, org_unit, user_type, country, department, office, division, is_transitory, email_df, Sensitive, index)
+						email_df = create_df(messageId, subject, attachments, sent_date, importance, body, sensitivity, org_unit, is_state, user_type, country, department, office, division, is_transitory, email_df, Sensitive, index)
 				
 
 			Master_df = Master_df.append(email_df)
+			
 			
 
 	Master_df.to_csv(output_directory + '//' + 'Master_df.csv')	
