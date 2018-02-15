@@ -129,9 +129,10 @@ def wrangle():
 			Master_df = Master_df.append(email_df)
 			
 			
-	print('ERROR: THESE FILES ARE MISSING FIELDS')
+	print('ERROR: THESE FILES ARE MISSING FIELDS:')
 	print(missing_fields_dict)
-	print('ERROR: THESE ZIP FILES HAVE A WEIRD NUMBER OF FILES')
+	print('------------------------------------------------------------------------------------------------------')
+	print('ERROR: THESE ZIP FILES HAVE A WEIRD NUMBER OF FILES:')
 	print(weird_directories)	
 	Master_df.to_csv(output_directory + '//' + 'Master_df.csv')	
 
