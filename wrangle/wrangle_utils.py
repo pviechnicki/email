@@ -8,6 +8,21 @@ from io import StringIO
 from Crypto import Random
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
+import yaml
+import os
+
+def directory_loader(yaml_directory):
+	myPath = os.path.normpath(yaml_directory + '//' + 'directories.yaml')
+	with open(myPath, 'r') as D:
+		directories_file = yaml.load(D)
+
+		input_directory = directories_file['Input']
+		output_directory = directories_file['Output']
+
+		input_directory = input_directory[0]
+		output_directory = output_directory[0]
+
+	return input_directory, output_directory
 
 class AESCipher:
 	'''AES Cipher Class'''
@@ -59,7 +74,7 @@ def irm_decrypt(file_name, directory):
 
 
 
-def parse_json_object(json_text):
+def parse_json_object(json_text, fn, missing_fields_dict):
 	'''
 	extracts relevant information from the json object and returns variables that contain information
 	'''
@@ -84,27 +99,30 @@ def parse_json_object(json_text):
 		user_type = from_dict['userType']
 	except KeyError:
 		user_type = ''
-		sys.stderr.write('wrangle.py ERROR: userType not found in metadata')
+		missing_fields_dict[fn].append('user_type,')
+		
 	try:
 		country = from_dict['country']
 	except KeyError:
 		country = ''
-		sys.stderr.write('wrangle.py ERROR: country not found in metadata')
+		missing_fields_dict[fn].append('country')
 	try:
 		department = from_dict['department']
 	except KeyError:
 		department = ''
-		sys.stderr.write('wrangle.py ERROR: department not found in metadata')
+		missing_fields_dict[fn].append('department')
 	try:
 		office = from_dict['office']
 	except KeyError:
 		office = ''
-		sys.stderr.write('wrangle.py ERROR: office not found in metadata')
+		missing_fields_dict[fn].append('office')
 	try:	
 		division = from_dict['division']
 	except KeyError:
 		division = ''
-		sys.stderr.write('wrangle.py ERROR: division not found in metadata')	
+		missing_fields_dict[fn].append('division')
+	
+
 	body = json_text['metadata']['message']['plainTextBody']
 	body = body.replace('\r\n','')
 	sensitivity = str(next((p.values() for p in properties_list if p.get('key')== 'Sensitivity')))
@@ -113,7 +131,7 @@ def parse_json_object(json_text):
 	sensitivity.strip()
 	is_transitory = str(next((p.values() for p in properties_list if p.get('key')== 'IsTransitory')))
 
-	return messageId, subject, attachments, sent_date, importance, body, sensitivity, org_unit, is_state, user_type, country, department, office, division, is_transitory
+	return missing_fields_dict, messageId, subject, attachments, sent_date, importance, body, sensitivity, org_unit, is_state, user_type, country, department, office, division, is_transitory
 
 def initialize_wrangle_config():
 	'''

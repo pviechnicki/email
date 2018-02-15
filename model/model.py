@@ -1,6 +1,5 @@
 import pandas as pd 
 import sys
-sys.path.insert(0,'C:/Users/ComputerA/email_marker/REPO/data/Output')
 from nltk.corpus import stopwords
 from nltk.stem.snowball import SnowballStemmer
 from model_utils import remove_empty_emails
@@ -10,6 +9,9 @@ from model_utils import create_naive_bayes
 from model_utils import NB_results
 from model_utils import create_informative_terms
 import getopt
+
+#Add higher level directory to import path so it can find wrangle_utils
+sys.path.append("..\wrangle")
 
 #trying to re-add to git
 def usage():
@@ -28,8 +30,7 @@ def run_model():
 			exit(0)
 		elif o in ('-d', '--directory'):
 			yaml_directory = a
-			sys.path.insert(0, yaml_directory)
-			from load_directories import directory_loader
+			from wrangle_utils import directory_loader
 			input_directory, output_directory = directory_loader(yaml_directory)
 
 	email_df = pd.read_csv(output_directory + '//' + 'Master_df.csv')
