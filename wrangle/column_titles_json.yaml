@@ -6,6 +6,13 @@ df_columns:
  - importance
  - body
  - sensitivity
- - attachment_count
+ - is_transitory
+ - attachments
+ - is_state
  - org_unit
+ - user_type
+ - country
+ - department
+ - office
+ - division
 ...

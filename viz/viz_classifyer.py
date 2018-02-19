@@ -25,6 +25,7 @@ from viz_utils import generateAccuracyTable,generateTruthTable
 from viz_utils import countTokens, countFreqs
 import nltk
 from nltk.corpus import stopwords
+import getopt
 
 #---------------------------------------------------#
 # Return name of dataframe based on input parameter #
@@ -102,22 +103,40 @@ def updateBarChartData(currentEmail):
 # Prepare input data                                   #
 #Load results from classifier notebook
 #------------------------------------------------------#
-with open('C:/Users/embicks/Documents/DOTCE/email_marker/email/data/Output/totalTermCounts.pyc', 'rb') as f:
+def usage():
+    sys.stdout.write("Usage: python viz_classifyer.py [-d|--directory= <top directory of the github repository where your directory yaml sits>] [-n|--number= <number of output emails requested>] [-h|?|--help]") 
+try:
+        opts, args = getopt.getopt(sys.argv[1:], "d:n:h?", ["--directory=", "--number=", "--help"])
+except getopt.GetoptError as err:
+    #Exit if can't parse args
+    usage() 
+    sys.exit(2)
+for o, a in opts:
+        if (o == '-h' or o == '-?'):
+            usage()
+            exit(0)
+        elif o in ('-d', '--directory'):
+            yaml_directory = a
+            sys.path.insert(0, yaml_directory)
+            from load_directories import directory_loader
+            input_directory, output_directory = directory_loader(yaml_directory)
+
+with open(output_directory + '//' + 'totalTermCounts.pyc', 'rb') as f:
     totalTermCounts = pickle.load(f)
 f.close()
-with open('C:/Users/embicks/Documents/DOTCE/email_marker/email/data/Output/informativeTerms.pyc', 'rb') as f:
+with open(output_directory + '//' + 'informativeTerms.pyc', 'rb') as f:
     informativeTerms = pickle.load(f)
 f.close()
-with open('C:/Users/embicks/Documents/DOTCE/email_marker/email/data/Output/classifierStats.pyc', 'rb') as f:
+with open(output_directory + '//' + 'classifierStats.pyc', 'rb') as f:
     classifierStats = pickle.load(f)
 f.close()
-with open('C:/Users/embicks/Documents/DOTCE/email_marker/email/data/Output/classifierTestResults.pyc', 'rb') as f:
+with open(output_directory + '//' + 'classifierTestResults.pyc', 'rb') as f:
     classifierTestResults = pickle.load(f)
 f.close()
-with open('C:/Users/embicks/Documents/DOTCE/email_marker/email/data/Output/feature_counts_training.pyc', 'rb') as f:
+with open(output_directory + '//' + 'feature_counts_training.pyc', 'rb') as f:
     feature_counts_training = pickle.load(f)
 f.close()
-with open('C:/Users/embicks/Documents/DOTCE/email_marker/email/data/Output/feature_counts_test.pyc', 'rb') as f:
+with open(output_directory + '//' + 'feature_counts_test.pyc', 'rb') as f:
     feature_counts_test = pickle.load(f)
 f.close()
     

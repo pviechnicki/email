@@ -8,6 +8,21 @@ from io import StringIO
 from Crypto import Random
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
+import yaml
+import os
+
+def directory_loader(yaml_directory):
+	myPath = os.path.normpath(yaml_directory + '//' + 'directories.yaml')
+	with open(myPath, 'r') as D:
+		directories_file = yaml.load(D)
+
+		input_directory = directories_file['Input']
+		output_directory = directories_file['Output']
+
+		input_directory = input_directory[0]
+		output_directory = output_directory[0]
+
+	return input_directory, output_directory
 
 class AESCipher:
 	'''AES Cipher Class'''
@@ -59,7 +74,7 @@ def irm_decrypt(file_name, directory):
 
 
 
-def parse_json_object(json_text):
+def parse_json_object(json_text, fn, missing_fields_dict):
 	'''
 	extracts relevant information from the json object and returns variables that contain information
 	'''
@@ -67,7 +82,7 @@ def parse_json_object(json_text):
 	properties_list = json_text['metadata']['properties']
 	messageId = json_text['metadata']['message']['messageId']
 	subject = json_text['metadata']['message']['subject']
-	attachment_count = json_text['metadata']['attachments']
+	attachments = json_text['metadata']['attachments']
 	sent_date = json_text['metadata']['message']['sentDate']
 	importance = json_text['metadata']['message']['importance']
 	user_role_list = json_text['metadata']['users']
@@ -79,14 +94,44 @@ def parse_json_object(json_text):
 		except:
 			from_dict = next(item for item in user_role_list if item["userRoles"] == ['From', 'To'])
 	org_unit = from_dict['orgUnit']
+	is_state = from_dict['isState']
+	try:
+		user_type = from_dict['userType']
+	except KeyError:
+		user_type = ''
+		missing_fields_dict[fn].append('user_type,')
+		
+	try:
+		country = from_dict['country']
+	except KeyError:
+		country = ''
+		missing_fields_dict[fn].append('country')
+	try:
+		department = from_dict['department']
+	except KeyError:
+		department = ''
+		missing_fields_dict[fn].append('department')
+	try:
+		office = from_dict['office']
+	except KeyError:
+		office = ''
+		missing_fields_dict[fn].append('office')
+	try:	
+		division = from_dict['division']
+	except KeyError:
+		division = ''
+		missing_fields_dict[fn].append('division')
+	
+
 	body = json_text['metadata']['message']['plainTextBody']
 	body = body.replace('\r\n','')
 	sensitivity = str(next((p.values() for p in properties_list if p.get('key')== 'Sensitivity')))
 	sensitivity = sensitivity.replace('dict_values','')
 	sensitivity = ''.join(ch for ch in sensitivity if ch not in exclude)
 	sensitivity.strip()
+	is_transitory = str(next((p.values() for p in properties_list if p.get('key')== 'IsTransitory')))
 
-	return messageId, subject, attachment_count, sent_date, importance, body, sensitivity, org_unit
+	return missing_fields_dict, messageId, subject, attachments, sent_date, importance, body, sensitivity, org_unit, is_state, user_type, country, department, office, division, is_transitory
 
 def initialize_wrangle_config():
 	'''
@@ -131,14 +176,13 @@ def containsPII(emailText, configContainer):
 	
 	return result
 
-def create_df(messageId, subject, attachment_count, sent_date, importance, body, sensitivity, org_unit, email_df, Sensitive, index):
+def create_df(messageId, subject, attachments, sent_date, importance, body, sensitivity, org_unit, is_state, user_type, country, department, office, division, is_transitory, email_df, Sensitive, index):
 	'''
 	Turns variables parsed from json object into dataframe if emails do not contain sensitive PII
 	'''
 	if Sensitive == False:
-		email_df.loc[index] = [messageId, subject, sent_date, importance, body, sensitivity, attachment_count, org_unit]
+		email_df.loc[index] = [messageId, subject, sent_date, importance, body, sensitivity, is_transitory, attachments, is_state, org_unit, user_type, country, department, office, division]
 	else: 
 		print('email removed due to sensitive information in the body')
 
 	return email_df
-

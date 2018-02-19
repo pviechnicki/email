@@ -14,19 +14,25 @@ from sklearn.cross_validation import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn import metrics
 import pickle
-
+#trying to re-add to git
 def remove_empty_emails(email_df):
 	#Add rowid
 	email_df['rownum'] = range(0, len(email_df))
 	email_df.groupby('sensitivity').count()
 	# Filter out empty rows
-	non_empty_df = email_df[email_df['body'].isnull() == False].sample(frac = 0.9)
+	non_empty_df = email_df[email_df['body'].isnull() == False].sample(frac = 1)
 	#sample method chooses a random sample of the origina frame
 	#https://stackoverflow.com/questions/29576430/shuffle-dataframe-rows
 	print("Original dataframe contains {} messages\nNon-empty datafram contains {} messages\n".format(
 	len(email_df), len(non_empty_df)))
 
 	non_empty_df['personal'] = (non_empty_df['sensitivity'] == 'Sensitivity Personal')
+
+	#DELETE THIS FOR ACTUAL MODEL
+	# for i, row in non_empty_df.iterrows():
+	# 	if 'Russia' in row['body']:
+	# 		non_empty_df = non_empty_df.set_value(i, 'personal', 'True')
+	# print('SETTING ROWS TO PERSONAL THAT CONTAIN WORD RUSSIA - MAKE SURE TO REMOVE')
 	#Create a vector of class labels
 	class_labels = non_empty_df['personal']
 	#use value_counts() method of series
@@ -67,7 +73,7 @@ def create_naive_bayes(train_X, class_labels_training):
 
 	return model_nb
 
-def NB_results(model_nb, test_X, class_labels_test, test_df):
+def NB_results(model_nb, test_X, class_labels_test, test_df, output_directory):
 	predictions = model_nb.predict( test_X )
 	print("Accuracy score for your classifier: {:.3f}\n".format(model_nb.score( test_X, class_labels_test)))
 	print("Error rate for your classifier: {:.3f}\n".format(1-model_nb.score( test_X, class_labels_test)))
@@ -85,10 +91,10 @@ def NB_results(model_nb, test_X, class_labels_test, test_df):
 	counts = enrichedResults['truthValue'].value_counts()
 	for i in range(0,len(counts)):
 		classifierStats[counts.index[i]] = counts[i]
-	with open('C:/Users/ComputerA/email_marker/REPO/data/Output/classifierStats.pyc', 'wb') as f:
+	with open(output_directory + '//'+ 'classifierStats.pyc', 'wb') as f:
 		pickle.dump(classifierStats, f)
 	f.close()
-	with open('C:/Users/ComputerA/email_marker/REPO/data/Output/classifierTestResults.pyc', 'wb') as f1:
+	with open(output_directory + '//'+ 'classifierTestResults.pyc', 'wb') as f1:
 		pickle.dump(enrichedResults, f1)
 
 	f1.close()
@@ -97,11 +103,11 @@ def NB_results(model_nb, test_X, class_labels_test, test_df):
 
 	return predictions, results
 
-def create_informative_terms(train_X, train_df, feature_names, test_df):
+def create_informative_terms(train_X, train_df, feature_names, test_df, output_directory):
 	informativeTerms = top_feats_by_class(train_X, train_df, feature_names, top_n=100)
 	#Should print out 10 most informative features for you
 	informativeTerms.head(10)
-	with open('C:/Users/ComputerA/email_marker/REPO/data/Output/informativeTerms.pyc', 'wb') as f:
+	with open(output_directory + '//'+ 'informativeTerms.pyc', 'wb') as f:
 		pickle.dump(informativeTerms, f)
 	f.close()
 
@@ -124,17 +130,17 @@ def create_informative_terms(train_X, train_df, feature_names, test_df):
 	            feature_counts_test[token] += 1 
 
 	#Write to disk
-	with open('C:/Users/ComputerA/email_marker/REPO/data/Output/feature_counts_training.pyc', 'wb') as f:
+	with open(output_directory + '//'+ 'feature_counts_training.pyc', 'wb') as f:
 	    pickle.dump(feature_counts_training, f)
 	f.close()
-	with open('C:/Users/ComputerA/email_marker/REPO/data/Output/feature_counts_test.pyc', 'wb') as f:
+	with open(output_directory + '//'+ 'feature_counts_test.pyc', 'wb') as f:
 	    pickle.dump(feature_counts_test, f)
 	f.close()
 
 	print(informativeTermsSet)
 
 	totalTermCounts = {'trainTokensTotal': trainTokensTotal, 'testTokensTotal': testTokensTotal}
-	with open('C:/Users/ComputerA/email_marker/REPO/data/Output/totalTermCounts.pyc', 'wb') as f:
+	with open(output_directory + '//'+ 'totalTermCounts.pyc', 'wb') as f:
 		pickle.dump(totalTermCounts, f)
 	f.close()
 

@@ -13,6 +13,9 @@ from wrangle_utils import create_df
 from wrangle_utils import initialize_wrangle_config #Do all the initialization of lookup tables one time
 import getopt
 from io import BytesIO #needed to read in-memory version of zip file
+from wrangle_utils import directory_loader
+from collections import defaultdict
+
 
 
 '''
@@ -36,9 +39,11 @@ Write Master_df to a csv in output data folder
 '''
 
 def usage():
-	sys.stdout.write("Usage: python wrangle.py [-d|--directory= <directory name with zipped email files>] [-n|--number= <number of output emails requested>] [-h|?|--help]")	
+	sys.stdout.write("Usage: python wrangle.py [-d|--directory= <top directory of the github repository where your directory yaml sits>] [-n|--number= <number of output emails requested>] [-h|?|--help]")	
 
 def wrangle():
+	#set default for numberRequested
+	numberRequested = math.inf
 
 	#Get and parse command line args
 	try:
@@ -52,10 +57,8 @@ def wrangle():
 			usage()
 			exit(0)
 		elif o in ('-d', '--directory'):
-			dataDirectory = a
-			if o not in ('n', '--number'):
-				print('THIS IS HAPPENING')
-				numberRequested = math.inf
+			yaml_directory = a
+			input_directory, output_directory = directory_loader(yaml_directory)
 
 		elif o in ('-n', '--number'):
 			try:
@@ -76,14 +79,16 @@ def wrangle():
 
 	#Set email counter to 0
 	emailCounter = 0
+	missing_fields_dict = defaultdict(list)
+	weird_directories = dict()
 
-	for fn in os.listdir(dataDirectory):
+	for zfn in os.listdir(input_directory):
 		#Only open number of files neceesary for email requested
 		if (emailCounter > numberRequested):
 			break
 		else:
 
-			decrypted_zip = irm_decrypt(fn, dataDirectory)
+			decrypted_zip = irm_decrypt(zfn, input_directory)
 			fileLikeZip = BytesIO(decrypted_zip)
 		
 			email_df = pd.DataFrame(columns = df_columns)
@@ -95,12 +100,19 @@ def wrangle():
 
 			with zipfile.ZipFile(fileLikeZip) as z:
 				json_files = [fn for fn in z.namelist()]
+				try:
+					assert len(json_files) == 30
+				except:
+					weird_directories[zfn] = len(json_files)
+					# sys.stderr.write('wrangle.py ERROR: THERE WERE {} FILES IN THE DIRECTORY'.format(len(json_files)))
+
 				for index, fn in enumerate(json_files):
 					try:
 						assert fn[-5:] == '.json'
 					except:
 						sys.stderr.write('wrangle.py ERROR: FILE {} INSIDE ZIP WAS NOT A JSON'.format(fn))
 						return False
+					
 
 					emailCounter += 1
 					
@@ -108,15 +120,21 @@ def wrangle():
 					if (emailCounter <= numberRequested):
 						json_str = z.read(fn)
 						json_text = json.loads(json_str)
-						messageId, subject, attachment_count, sent_date, importance, body, sensitivity, org_unit = parse_json_object(json_text)
+						missing_fields_dict, messageId, subject, attachments, sent_date, importance, body, sensitivity, org_unit, is_state, user_type, country, department, office, division, is_transitory = parse_json_object(json_text, fn, missing_fields_dict)
 						body = remove_non_ascii_characters(body)
 						Sensitive = containsPII(body, wrangleConfig)
-						email_df = create_df(messageId, subject, attachment_count, sent_date, importance, body, sensitivity, org_unit, email_df, Sensitive, index)
+						email_df = create_df(messageId, subject, attachments, sent_date, importance, body, sensitivity, org_unit, is_state, user_type, country, department, office, division, is_transitory, email_df, Sensitive, index)
 				
 
 			Master_df = Master_df.append(email_df)
-
-	Master_df.to_csv('C:/Users/embicks/Documents/DOTCE/email_marker/email/data/Output/Master_df.csv')	
+			
+			
+	print('ERROR: THESE FILES ARE MISSING FIELDS:')
+	print(missing_fields_dict)
+	print('------------------------------------------------------------------------------------------------------')
+	print('ERROR: THESE ZIP FILES HAVE A WEIRD NUMBER OF FILES:')
+	print(weird_directories)	
+	Master_df.to_csv(output_directory + '//' + 'Master_df.csv')	
 
 	return True
 

@@ -1,1 +1,6 @@
 Scripts to build and train categorization models.
+
+*Read a pandas dataframe of emails, and train a text categorizer on them         
+*Write out results in pickle files to feed visualizations.                       
+
+usage: python model.py (creates pickle files which feed the visualizations in the viz folder.)
