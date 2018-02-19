@@ -55,12 +55,28 @@ def generateAccuracyTable(myStats):
     '''Returns 2-row table with labels in column 1, accuracy, error rate'''
     return html.Table([
         html.Tr([
-            html.Th("Accuracy"),
-            html.Td("{:.1%}".format(myStats['accuracy']))
+            html.Th(
+                id='accuracyTableCell1',
+                children = "Accuracy",
+                className = 'highlightedCell'
+            ),
+            html.Td(
+                id = 'accuracyTableCell2',
+                children = "{:.1%}".format(myStats['accuracy']),
+                className = 'highlightedCell'
+            )
         ]),
         html.Tr([
-            html.Th("Error Rate"),
-            html.Td("{:.1%}".format(myStats['errorRate']))
+            html.Th(
+                id = 'errorTableCell1',
+                children = "Error Rate",
+                className = 'normalCell'
+            ),
+            html.Td(
+                id = 'errorTableCell2',
+                children = "{:.1%}".format(myStats['errorRate']),
+                className = 'normalCell'
+            )
         ])
     ])
 #--------------------------------------------------#
@@ -82,14 +98,30 @@ def generateTruthTable(myStats):
         html.Tr([
             html.Th(children="Classifier Assigned", style={'rowSpan': 2}),
             html.Th("Personal"),
-            html.Td(myStats['truePositive']),
-            html.Td(myStats['falsePositive'])
+            html.Td(
+                id = 'truePositivesCell',
+                children = myStats['truePositive'],
+                className = 'highlightedCell'
+            ),
+            html.Td(
+                id = 'falsePositivesCell',
+                children = myStats['falsePositive'],
+                className = 'normalCell'
+            )
         ]),
         html.Tr([
             html.Th(),
             html.Th("Not Personal"),
-            html.Td(myStats['falseNegative']),
-            html.Td(myStats['trueNegative'])
+            html.Td(
+                id = 'falseNegativesCell',
+                children = myStats['falseNegative'],
+                className = 'normalCell'
+            ),
+            html.Td(
+                id = 'trueNegativesCell',
+                children = myStats['trueNegative'],
+                className = 'normalCell'
+            )
         ])
     ])
 
@@ -146,7 +178,7 @@ def myTokenize(text):
 #Wrap string with span tags and class info       #
 #------------------------------------------------#
 def wrapSpan(string):
-    return("<span class=\"highlightme\" style=\"background-color: yellow\">" + string + "</span>")
+    return("<span class=\"highlightme\" style=\"background-color: #2ca02c\">" + string + "</span>")
 
 #------------------------------------------------#
 # Highlight all terms in string matching list
@@ -169,7 +201,7 @@ def highlightTerms(textString, termsList):
             start = span[0]
             end = span[1]
             highlightedText += rawText[currentOffset:start]
-            highlightedText += list("<span style=\"background-color: yellow\">")
+            highlightedText += list("<span style=\"background-color: #2ca02c\">")
             highlightedText += rawText[start:end]
             highlightedText += list("</span>")
             currentOffset = (end)

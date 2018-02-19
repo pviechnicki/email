@@ -374,8 +374,9 @@ hr {
   margin-bottom: 3.5rem;
   border-width: 0;
   border-top: 1px solid #E1E1E1; }
-.highlightme { background-color: yellow; }
-
+.highlightme { background-color: #2ca02c; }
+.highlightedCell { background-color: lightblue; }
+.normalCell { background-color: white; }
 /* Clearing
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 

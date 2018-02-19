@@ -218,15 +218,6 @@ app.layout = html.Div(children = [
                     html.Td(html.Button(id='buttonSubmit', children="Submit")),
                 ]) #tr
             ]), #tableJumpTo
-            html.P("Display N terms/features:"),
-            dcc.Slider(
-                id = 'sliderVisibleTerms',
-                min = 3,
-                max = 30,
-                value = 10,
-                step = None,
-                marks = {str(num): str(num) for num in range(1,30)}
-            ),
             html.Div(id="text_div", children=[
                 html.Iframe(
                     id = 'email_text_iframe',
@@ -239,6 +230,15 @@ app.layout = html.Div(children = [
         ]), #holder div
     ]),
     html.Div(id="graph_div", className = "six columns", children=[
+        html.P("Display N terms/features:"),
+        dcc.Slider(
+            id = 'sliderVisibleTerms',
+            min = 3,
+            max = 30,
+            value = 10,
+            step = None,
+            marks = {str(num): str(num) for num in range(1,30)}
+        ),
         dcc.Graph(
             id='bar-chart',
             figure={
@@ -371,9 +371,82 @@ def updateBarChart(n_clicks, chosenDF, myEmailNumber, numTerms):
     newFigure = updateBarChartData(subjectPlusBody)
     return (newFigure)
 
+#---------------------------------------------------------------#
+# Highlight accuracy or error rate depending on which value     #
+# chosen in radio button                                        #
+# Feeling bad about writing four functions to update four cells #
+# but can't see better way...                                   #
+#---------------------------------------------------------------#
+@app.callback(Output('accuracyTableCell1', 'className'),
+              [Input('buttonSubmit', 'n_clicks')],
+              [State('showMe', 'value')])
+def updateAccurcyCell1(n_clicks, showMe):
+    if (showMe in ['truePositive', 'trueNegative']):
+        return('highlightedCell')
+    else:
+        return('normalCell')
+@app.callback(Output('accuracyTableCell2', 'className'),
+              [Input('buttonSubmit', 'n_clicks')],
+              [State('showMe', 'value')])
+def updateAccurcyCell2(n_clicks, showMe):
+    if (showMe in ['truePositive', 'trueNegative']):
+        return('highlightedCell')
+    else:
+        return('normalCell')
+@app.callback(Output('errorTableCell1', 'className'),
+              [Input('buttonSubmit', 'n_clicks')],
+              [State('showMe', 'value')])
+def updateErrorCell1(n_clicks, showMe):
+    if (showMe in ['truePositive', 'trueNegative']):
+        return('normalCell')
+    else:
+        return('highlightedCell')
+@app.callback(Output('errorTableCell2', 'className'),
+              [Input('buttonSubmit', 'n_clicks')],
+              [State('showMe', 'value')])
+def updateErrorCell2(n_clicks, showMe):
+    if (showMe in ['truePositive', 'trueNegative']):
+        return('normalCell')
+    else:
+        return('highlightedCell')
+#---------------------------------------------------------------#
+# Highlight truth table depending on radio button selection     #
+#---------------------------------------------------------------#
+@app.callback(Output('truePositivesCell', 'className'),
+              [Input('buttonSubmit', 'n_clicks')],
+              [State('showMe', 'value')])
+def updateTruePositivesCell(n_clicks, showMe):
+    if (showMe == 'truePositive'):
+        return('highlightedCell')
+    else:
+        return('normalCell')    
+@app.callback(Output('trueNegativesCell', 'className'),
+              [Input('buttonSubmit', 'n_clicks')],
+              [State('showMe', 'value')])
+def updateTrueNegativesCell(n_clicks, showMe):
+    if (showMe == 'trueNegative'):
+        return('highlightedCell')
+    else:
+        return('normalCell')    
+@app.callback(Output('falsePositivesCell', 'className'),
+              [Input('buttonSubmit', 'n_clicks')],
+              [State('showMe', 'value')])
+def updateFalsePositivesCell(n_clicks, showMe):
+    if (showMe == 'falsePositive'):
+        return('highlightedCell')
+    else:
+        return('normalCell')    
+@app.callback(Output('falseNegativesCell', 'className'),
+              [Input('buttonSubmit', 'n_clicks')],
+              [State('showMe', 'value')])
+def updateFalseNegativesCell(n_clicks, showMe):
+    if (showMe == 'falseNegative'):
+        return('highlightedCell')
+    else:
+        return('normalCell')    
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)
 
     
                 
