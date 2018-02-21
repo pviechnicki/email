@@ -2,12 +2,7 @@ import pandas as pd
 import sys
 from nltk.corpus import stopwords
 from nltk.stem.snowball import SnowballStemmer
-from model_utils import remove_empty_emails
-from model_utils import train_test_set
-from model_utils import create_doc_matrices
-from model_utils import create_naive_bayes
-from model_utils import NB_results
-from model_utils import create_informative_terms
+
 import getopt
 
 #Add higher level directory to import path so it can find wrangle_utils
@@ -29,9 +24,16 @@ def run_model():
 			usage()
 			exit(0)
 		elif o in ('-d', '--directory'):
-			yaml_directory = a
-			from wrangle_utils import directory_loader
-			input_directory, output_directory = directory_loader(yaml_directory)
+			parent_path = a
+			sys.path.insert(0, parent_path + '//' + 'utils')
+			from load_directories import directory_loader
+			input_directory, output_directory = directory_loader(parent_path)
+			from model_utils import remove_empty_emails
+			from model_utils import train_test_set
+			from model_utils import create_doc_matrices
+			from model_utils import create_naive_bayes
+			from model_utils import NB_results
+			from model_utils import create_informative_terms
 
 	email_df = pd.read_csv(output_directory + '//' + 'Master_df.csv')
 

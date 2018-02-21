@@ -5,15 +5,9 @@ import pandas as pd
 import zipfile
 import simplejson as json
 import math
-from wrangle_utils import irm_decrypt
-from wrangle_utils import parse_json_object
-from wrangle_utils import remove_non_ascii_characters
-from wrangle_utils import containsPII
-from wrangle_utils import create_df
-from wrangle_utils import initialize_wrangle_config #Do all the initialization of lookup tables one time
+ #Do all the initialization of lookup tables one time
 import getopt
 from io import BytesIO #needed to read in-memory version of zip file
-from wrangle_utils import directory_loader
 from collections import defaultdict
 
 
@@ -57,8 +51,16 @@ def wrangle():
 			usage()
 			exit(0)
 		elif o in ('-d', '--directory'):
-			yaml_directory = a
-			input_directory, output_directory = directory_loader(yaml_directory)
+			parent_path = a
+			sys.path.insert(0, parent_path + '//' + 'utils')
+			from load_directories import directory_loader
+			from wrangle_utils import irm_decrypt
+			from wrangle_utils import parse_json_object
+			from wrangle_utils import remove_non_ascii_characters
+			from wrangle_utils import containsPII
+			from wrangle_utils import create_df
+			from wrangle_utils import initialize_wrangle_config
+			input_directory, output_directory = directory_loader(parent_path)
 
 		elif o in ('-n', '--number'):
 			try:
