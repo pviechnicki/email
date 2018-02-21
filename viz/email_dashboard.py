@@ -16,18 +16,41 @@ from collections import defaultdict
 import sys
 import os
 from flask import send_from_directory
-from email_utils import safe_divide, initialize_hour_tallies
-from email_utils import update_bar_data
+import getopt
+import datetime as dt
+
 
 #Local version of stylesheet from https://codepen.io/chriddyp/pen/bWLwgP.css
 stylesheets = ['bWLwgP.css']
 
+#read in data
+def usage():
+    sys.stdout.write("Usage: python wrangle.py [-d|--directory= <top directory of the github repository where your directory yaml sits>] [-n|--number= <number of output emails requested>] [-h|?|--help]") 
+    
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "d:n:h?", ["--directory=", "--number=", "--help"])
+except getopt.GetoptError as err:
+    #Exit if can't parse args
+    usage() 
+    sys.exit(2)
+for o, a in opts:
+    if (o == '-h' or o == '-?'):
+        usage()
+        exit(0)
+    elif o in ('-d', '--directory'):
+        parent_path = a
+        sys.path.insert(0, parent_path + '//' + 'utils')
+        from load_directories import directory_loader
+        from viz_utils import safe_divide, initialize_hour_tallies
+        from viz_utils import update_bar_data
+        from email_utils import safe_divide, initialize_hour_tallies
+        from email_utils import update_bar_data
+        input_directory, output_directory = directory_loader(parent_path)
 
-#read in csv
-raw_df = pd.read_csv('../data/email_cats.csv', header=0)
+raw_df = pd.read_csv(output_directory + '//' + 'Master_df.csv')
 
 #Prepare two cross-tabs to support the pie and bar charts
-ct_orgs = pd.crosstab(raw_df.cat, raw_df.org, margins=True)
+ct_orgs = pd.crosstab(raw_df.sensitivity, raw_df.org_unit, margins=True)
 
 #list of categories
 my_cat_labels = (ct_orgs.index.values.tolist())[:-1]
@@ -38,13 +61,14 @@ for i in range(0,len(my_orgs)):
 
 #Count emails by category, org, and hour, store in multilevel defaultdict
 hour_tallies = defaultdict( lambda: defaultdict(lambda: defaultdict( int )))
-initialize_hour_tallies(hour_tallies, my_cat_labels, my_orgs, range(1,13))
+initialize_hour_tallies(hour_tallies, my_cat_labels, my_orgs, range(1,25))
 #Now fill up with actual numbers
 for index, row in raw_df.iterrows():
-    hour_tallies[row['cat']][row['org']][row['hour']] += 1
-    hour_tallies[row['cat']]['All'][row['hour']] += 1
-    hour_tallies['All'][row['org']][row['hour']] += 1
-    hour_tallies['All']['All'][row['hour']] += 1
+    row['sent_date'] = dt.datetime.strptime(row['sent_date'], "%Y-%m-%dT%H:%M:%S")
+    hour_tallies[row['sensitivity']][row['org_unit']][row['sent_date'].hour] += 1
+    hour_tallies[row['sensitivity']]['All'][row['sent_date'].hour] += 1
+    hour_tallies['All'][row['org_unit']][row['sent_date'].hour] += 1
+    hour_tallies['All']['All'][row['sent_date'].hour] += 1
 
 #--------------------------------------------#    
 # Start building the dashboard - initialize  #
@@ -92,25 +116,25 @@ app.layout = html.Div(children = [
                 figure={
                     'data': [
                         go.Bar(
-                            x = list(range(1,13)),
+                            x = list(range(1,25)),
                             y = list(map(safe_divide,
-                                         hour_tallies['personal']['All'].values(),
+                                         hour_tallies['Sensitivity Personal']['All'].values(),
                                          hour_tallies['All']['All'].values())),
                             name='Personal',
                             marker={'color': '#2ca02c'}
                         ),
+                        # go.Bar(
+                        #     x = list(range(1,13)),
+                        #     y = list(map(safe_divide,
+                        #                  hour_tallies['transient']['All'].values(),
+                        #                  hour_tallies['All']['All'].values())),
+                        #     name='Transient',
+                        #     marker={'color':'#ff7f0e'}
+                        # ),
                         go.Bar(
-                            x = list(range(1,13)),
+                            x=list(range(1,25)),
                             y = list(map(safe_divide,
-                                         hour_tallies['transient']['All'].values(),
-                                         hour_tallies['All']['All'].values())),
-                            name='Transient',
-                            marker={'color':'#ff7f0e'}
-                        ),
-                        go.Bar(
-                            x=list(range(1,13)),
-                            y = list(map(safe_divide,
-                                         hour_tallies['official']['All'].values(),
+                                         hour_tallies['Sensitivity Official']['All'].values(),
                                          hour_tallies['All']['All'].values())),
                             name='Official',
                             marker={'color': '#1f77b4'}

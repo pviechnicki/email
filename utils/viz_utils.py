@@ -238,18 +238,18 @@ def update_bar_data(new_value, hour_tallies):
     depending on what org is selected
     '''
     personal_list = []
-    for i in range(1,60):
+    for i in range(1,25):
         personal_list.append(safe_divide(
             hour_tallies['Sensitivity Personal'][new_value][i],
             hour_tallies['All'][new_value][i]))
 
     transient_list = []
-    for i in range(1,60):
+    for i in range(1,25):
         transient_list.append(safe_divide(
             hour_tallies['transient'][new_value][i],
             hour_tallies['All'][new_value][i]))
     official_list = []
-    for i in range(1,60):
+    for i in range(1,25):
         official_list.append(safe_divide(
             hour_tallies['Sensitivity Official'][new_value][i],
             hour_tallies['All'][new_value][i]))
@@ -257,19 +257,19 @@ def update_bar_data(new_value, hour_tallies):
     return {
         'data': [
             go.Bar(
-                x=list(range(1,60)),
+                x=list(range(1,25)),
                 y=personal_list,
                 name='Sensitivity Personal',
                 marker={'color': '#2ca02c'}
             ),
             go.Bar(
-                x=list(range(1,60)),
+                x=list(range(1,25)),
                 y=transient_list,
                 name='Transient',
                 marker={'color': '#ff7f0e'}
             ),
             go.Bar(
-                x=list(range(1,60)),
+                x=list(range(1,25)),
                 y=official_list,
                 name='Sensitivity Official',
                 marker={'color': '#1f77b4'}
@@ -277,7 +277,7 @@ def update_bar_data(new_value, hour_tallies):
             
         ],
         'layout': go.Layout(
-            xaxis={'title': 'minute'},
+            xaxis={'title': 'Hour'},
             yaxis={'title': 'Proportion'}
         )
     }
