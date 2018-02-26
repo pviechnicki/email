@@ -20,9 +20,6 @@ import sys
 import os
 from flask import send_from_directory
 import pickle
-from viz_utils import highlightTerms, formatEmail
-from viz_utils import generateAccuracyTable,generateTruthTable
-from viz_utils import countTokens, countFreqs
 import nltk
 from nltk.corpus import stopwords
 import getopt
@@ -116,10 +113,13 @@ for o, a in opts:
             usage()
             exit(0)
         elif o in ('-d', '--directory'):
-            yaml_directory = a
-            sys.path.insert(0, yaml_directory)
+            parent_path = a
+            sys.path.insert(0, parent_path + '//' + 'utils')
             from load_directories import directory_loader
-            input_directory, output_directory = directory_loader(yaml_directory)
+            input_directory, output_directory = directory_loader(parent_path)
+            from viz_utils import highlightTerms, formatEmail
+            from viz_utils import generateAccuracyTable,generateTruthTable
+            from viz_utils import countTokens, countFreqs
 
 with open(output_directory + '//' + 'totalTermCounts.pyc', 'rb') as f:
     totalTermCounts = pickle.load(f)

@@ -55,71 +55,75 @@ def generateAccuracyTable(myStats):
     '''Returns 2-row table with labels in column 1, accuracy, error rate'''
     return html.Table([
         html.Tr([
-            html.Th("Accuracy"),
-            html.Td("{:.1%}".format(myStats['accuracy']))
+            html.Th(
+                id='accuracyTableCell1',
+                children = "Accuracy",
+                className = 'highlightedCell'
+            ),
+            html.Td(
+                id = 'accuracyTableCell2',
+                children = "{:.1%}".format(myStats['accuracy']),
+                className = 'highlightedCell'
+            )
         ]),
         html.Tr([
-            html.Th("Error Rate"),
-            html.Td("{:.1%}".format(myStats['errorRate']))
+            html.Th(
+                id = 'errorTableCell1',
+                children = "Error Rate",
+                className = 'normalCell'
+            ),
+            html.Td(
+                id = 'errorTableCell2',
+                children = "{:.1%}".format(myStats['errorRate']),
+                className = 'normalCell'
+            )
         ])
     ])
 #--------------------------------------------------#
 # Return rows and cells for classifier truth table #
 #--------------------------------------------------#
 def generateTruthTable(myStats):
-
-    try:
-        return html.Table([
-            html.Tr([
-                html.Th(),
-                html.Th(),
-                html.Th("Ground Truth Value", style={'colspan': '2'})
-            ]),
-            html.Tr([
-                html.Th(),
-                html.Th(),
-                html.Th("Personal"),
-                html.Th("Not Personal")
-            ]),
-            html.Tr([
-                html.Th(children="Classifier Assigned", style={'rowSpan': 2}),
-                html.Th("Personal"),
-                html.Td(myStats['truePositive']),
-                html.Td(myStats['falsePositive'])
-            ]),
-            html.Tr([
-                html.Th(),
-                html.Th("Not Personal"),
-                html.Td(myStats['falseNegative']),
-                html.Td(myStats['trueNegative'])
-            ])
+    return html.Table([
+        html.Tr([
+            html.Th(),
+            html.Th(),
+            html.Th("Ground Truth Value", style={'colspan': '2'})
+        ]),
+        html.Tr([
+            html.Th(),
+            html.Th(),
+            html.Th("Personal"),
+            html.Th("Not Personal")
+        ]),
+        html.Tr([
+            html.Th(children="Classifier Assigned", style={'rowSpan': 2}),
+            html.Th("Personal"),
+            html.Td(
+                id = 'truePositivesCell',
+                children = myStats['truePositive'],
+                className = 'highlightedCell'
+            ),
+            html.Td(
+                id = 'falsePositivesCell',
+                children = myStats['falsePositive'],
+                className = 'normalCell'
+            )
+        ]),
+        html.Tr([
+            html.Th(),
+            html.Th("Not Personal"),
+            html.Td(
+                id = 'falseNegativesCell',
+                children = myStats['falseNegative'],
+                className = 'normalCell'
+            ),
+            html.Td(
+                id = 'trueNegativesCell',
+                children = myStats['trueNegative'],
+                className = 'normalCell'
+            )
         ])
-    except KeyError:
-            return html.Table([
-            html.Tr([
-                html.Th(),
-                html.Th(),
-                html.Th("Ground Truth Value", style={'colspan': '2'})
-            ]),
-            html.Tr([
-                html.Th(),
-                html.Th(),
-                html.Th("Personal"),
-                html.Th("Not Personal")
-            ]),
-            html.Tr([
-                html.Th(children="Classifier Assigned", style={'rowSpan': 2}),
-                html.Th("Personal"),
-                # html.Td(myStats['truePositive']),
-                html.Td(myStats['falsePositive'])
-            ]),
-            html.Tr([
-                html.Th(),
-                html.Th("Not Personal"),
-                # html.Td(myStats['falseNegative']),
-                html.Td(myStats['trueNegative'])
-            ])
-        ])
+    ])
 
 #-------------------------------------------------------------------------#
 # Using same stemmer and preprocessor definition as used in NB classifier #
@@ -174,7 +178,7 @@ def myTokenize(text):
 #Wrap string with span tags and class info       #
 #------------------------------------------------#
 def wrapSpan(string):
-    return("<span class=\"highlightme\" style=\"background-color: yellow\">" + string + "</span>")
+    return("<span class=\"highlightme\" style=\"background-color: #2ca02c\">" + string + "</span>")
 
 #------------------------------------------------#
 # Highlight all terms in string matching list
@@ -197,7 +201,7 @@ def highlightTerms(textString, termsList):
             start = span[0]
             end = span[1]
             highlightedText += rawText[currentOffset:start]
-            highlightedText += list("<span style=\"background-color: yellow\">")
+            highlightedText += list("<span style=\"background-color: #2ca02c\">")
             highlightedText += rawText[start:end]
             highlightedText += list("</span>")
             currentOffset = (end)
@@ -238,46 +242,46 @@ def update_bar_data(new_value, hour_tallies):
     depending on what org is selected
     '''
     personal_list = []
-    for i in range(1,60):
+    for i in range(1,13):
         personal_list.append(safe_divide(
-            hour_tallies['Sensitivity Personal'][new_value][i],
+            hour_tallies['personal'][new_value][i],
             hour_tallies['All'][new_value][i]))
 
     transient_list = []
-    for i in range(1,60):
+    for i in range(1,13):
         transient_list.append(safe_divide(
             hour_tallies['transient'][new_value][i],
             hour_tallies['All'][new_value][i]))
     official_list = []
-    for i in range(1,60):
+    for i in range(1,13):
         official_list.append(safe_divide(
-            hour_tallies['Sensitivity Official'][new_value][i],
+            hour_tallies['official'][new_value][i],
             hour_tallies['All'][new_value][i]))
 
     return {
         'data': [
             go.Bar(
-                x=list(range(1,60)),
+                x=list(range(1,13)),
                 y=personal_list,
-                name='Sensitivity Personal',
+                name='Personal',
                 marker={'color': '#2ca02c'}
             ),
             go.Bar(
-                x=list(range(1,60)),
+                x=list(range(1,13)),
                 y=transient_list,
                 name='Transient',
                 marker={'color': '#ff7f0e'}
             ),
             go.Bar(
-                x=list(range(1,60)),
+                x=list(range(1,13)),
                 y=official_list,
-                name='Sensitivity Official',
+                name='Official',
                 marker={'color': '#1f77b4'}
             ),
             
         ],
         'layout': go.Layout(
-            xaxis={'title': 'minute'},
+            xaxis={'title': 'Hour'},
             yaxis={'title': 'Proportion'}
         )
     }
