@@ -4,6 +4,94 @@ import re
 from nltk import pos_tag
 from nltk import word_tokenize
 
+
+def generateBigramsList(myEmailDf):
+    '''
+    bigramsList = []
+    for index, row in myEmailDf.iterrows():
+
+        subject = row['subject']
+        body = row['body']
+
+        if (len(body) > 0):
+    '''        
+    return None
+
+class MessageFeaturesCollection:
+
+    '''
+    Just a conventient collection of properties of each email message...
+    '''
+    def __init__(self, messageText, config):
+        self._sentences = splitMessage(messageText, config)
+        self._taggedSentences = [pos_tag(word_tokenize(sentence)) for sentence in self._sentences]
+        self.wordCount = len(word_tokenize(messageText))
+        self.sentenceCount = len(self._sentences)
+        self.questionsCount = self.countQuestions(self._taggedSentences, config)
+        self.verbCount = self.countVerbs(self._taggedSentences)
+        self.modalVerbCount = self.countModalVerbs(self._taggedSentences)
+        self.presentTenseVerbCount = self.countPresentTenseVerbs(self._taggedSentences)
+        self.punctuationCount = self.countPunctuation(self._taggedSentences)
+        self.punctuationPerSentence = ((self.punctuationCount / self.sentenceCount) if self.sentenceCount > 0 else 0)
+        self.hasGreeting = self.includesGreeting(self._sentences)
+        self.hasSignoff = self.includesSignoff(self._sentences)
+
+    def countVerbs(self, taggedSentences):
+        result = 0
+        for sentence in taggedSentences:
+            for (word, tag) in sentence:
+                if (isVerb(tag)):
+                    result += 1
+        return result
+    def countModalVerbs(self, taggedSentences):
+        result = 0
+        for sentence in taggedSentences:
+            for (word, tag) in sentence:
+                if (isModalVerb(tag)):
+                    result += 1
+        return result
+    def countPresentTenseVerbs(self, taggedSentences):
+        result = 0
+        for sentence in taggedSentences:
+            for (word, tag) in sentence:
+                if (isPresentTenseVerb(tag)):
+                    result += 1
+        return result
+    def countQuestions(self, taggedSentences, config):
+        result = 0
+        for sentence in taggedSentences:
+            #check if first word is wh-word, or last token is question mark
+            if sentence[0][0].lower() in config['whWords']:
+                result += 1
+            elif (sentence[-1][1] == '.' and sentence[-1][0] == '?'):
+                result += 1
+        return result
+    def countPunctuation(self, taggedSentences):
+        result = 0
+        for sentence in taggedSentences:
+            for (word, tag) in sentence:
+                if isPunctuation(tag):
+                    result += 1
+        return result
+    def countWordsPerSentence(self, sentences):
+        lengths = [len(sentence) for sentence in sentences]
+        if len(sentences) > 0:
+            return sum(lengths) / len(lengths)
+        else:
+            sys.stderr.write("Warning, message with 0 sentences found by countWordsPerSentence")
+            return 0
+    def includesGreeting(self, sentences):
+        '''
+        Does this email message start with an explicit greeting like dear, etc
+        '''
+        return False
+    def includesSignoff(self, sentences):
+        '''
+        Does this email end with an explicit signoff like 'Sincerely, yours, regards...
+        '''
+        return False
+
+
 def initializeFeatureExtractor():
     config = dict()
     messageDelimiters = ['(.*)From: '] #Marks start of replied to message in email body
@@ -18,6 +106,9 @@ def initializeFeatureExtractor():
         'modalVerbCount',
         'punctuationCount'
     ]
+
+    config['whWords'] = ['who', 'what', 'where', 'why', 'how', 'which']
+
     return (config)
 
 def printHeaders(fields):
@@ -28,7 +119,7 @@ def splitThread(text, myConfig):
     '''
     return list of messages
     '''
-    myMatch = config['messageDelimitersRE'].search(text)
+    myMatch = myConfig['messageDelimitersRE'].search(text)
     if myMatch == None:
         return(text)
     else:

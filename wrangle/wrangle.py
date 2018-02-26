@@ -134,7 +134,7 @@ def wrangle():
 	print('------------------------------------------------------------------------------------------------------')
 	print('ERROR: THESE ZIP FILES HAVE A WEIRD NUMBER OF FILES:')
 	print(weird_directories)	
-	Master_df.to_csv(output_directory + '//' + 'Master_df.csv')	
+	Master_df.to_csv(path_or_buf=(output_directory + '//' + 'Master_df.bsv'), sep='|')	
 
 	return True
 
