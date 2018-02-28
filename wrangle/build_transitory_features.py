@@ -5,6 +5,7 @@ import pandas as pd
 import zipfile
 import simplejson as json
 import math
+sys.path.append('../utils')
 from wrangle_utils import remove_non_ascii_characters
 from wrangle_utils import containsPII
 from wrangle_utils import create_df
@@ -70,6 +71,12 @@ def build_transitory_features(config):
 			#Build linguistic features which may correlate with transitory marking
 			featuresCollection = MessageFeaturesCollection(message, config)
 			print(featuresCollection._taggedSentences)
+			print("WordCount: {}".format(featuresCollection.wordCount))
+			print("SentenceCount: {}".format(featuresCollection.sentenceCount))
+			print("questionCount: {}".format(featuresCollection.questionCount))
+			print("verbCount: {}".format(featuresCollection.verbCount))
+			print("modalVerbCount: {}".format(featuresCollection.modalVerbCount))
+			print("punctuationCount: {}".format(featuresCollection.punctuationCount))
 		break
 
 				

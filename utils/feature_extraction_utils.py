@@ -27,14 +27,14 @@ class MessageFeaturesCollection:
         self._taggedSentences = [pos_tag(word_tokenize(sentence)) for sentence in self._sentences]
         self.wordCount = len(word_tokenize(messageText))
         self.sentenceCount = len(self._sentences)
-        self.questionsCount = self.countQuestions(self._taggedSentences, config)
+        self.questionCount = self.countQuestions(self._taggedSentences, config)
         self.verbCount = self.countVerbs(self._taggedSentences)
         self.modalVerbCount = self.countModalVerbs(self._taggedSentences)
         self.presentTenseVerbCount = self.countPresentTenseVerbs(self._taggedSentences)
         self.punctuationCount = self.countPunctuation(self._taggedSentences)
         self.punctuationPerSentence = ((self.punctuationCount / self.sentenceCount) if self.sentenceCount > 0 else 0)
-        self.hasGreeting = self.includesGreeting(self._sentences)
-        self.hasSignoff = self.includesSignoff(self._sentences)
+        self.hasGreeting = self.includesGreeting(self._sentences, config)
+        self.hasSignoff = self.includesSignoff(self._sentences, config)
 
     def countVerbs(self, taggedSentences):
         result = 0
@@ -80,17 +80,33 @@ class MessageFeaturesCollection:
         else:
             sys.stderr.write("Warning, message with 0 sentences found by countWordsPerSentence")
             return 0
-    def includesGreeting(self, sentences):
+    def includesGreeting(self, sentences, config):
         '''
         Does this email message start with an explicit greeting like dear, etc
+        #Only consider first two sentences
         '''
+        if len(sentences) >= 2:
+            loopNum = 1
+        else:
+            loopNum = 0
+        for sentence in sentences[0:loopNum]:
+            if (config['greetingWordsRE'].match(sentence)):
+                return True
         return False
-    def includesSignoff(self, sentences):
+        
+    def includesSignoff(self, sentences, config):
         '''
         Does this email end with an explicit signoff like 'Sincerely, yours, regards...
+        Only consider last two sentences
         '''
+        if len(sentences) >= 2:
+            loopNum = -2
+        else:
+            loopNum = -1
+        for sentence in sentences[loopNum:-1]:
+            if (config['signoffWordsRE'].match(sentence)):
+                return True
         return False
-
 
 def initializeFeatureExtractor():
     config = dict()
@@ -108,6 +124,16 @@ def initializeFeatureExtractor():
     ]
 
     config['whWords'] = ['who', 'what', 'where', 'why', 'how', 'which']
+
+    #Make sure to add .* before first and after last word in list
+    config['greetingWords'] = ['.*dear sir', 'dear sir/madam', 'dear madam', 'dear', 'hello', 'hi.*']
+    greetingString = ".*|.*".join(config['greetingWords'])
+    config['greetingWordsRE'] = re.compile(greetingString, re.IGNORECASE)
+
+    config['signoffWords'] = ['.*sincerely', 'thanks', 'best wishes', 'v/r', 'cheers', 
+    'regards', 'faithfully', 'yours truly', 'yours sincerely', 'best regards', 'sincerely yours.*']
+    signoffString  = ".*|.*".join(config['signoffWords'])
+    config['signoffWordsRE'] = re.compile(signoffString, re.IGNORECASE)
 
     return (config)
 
