@@ -1,31 +1,208 @@
 import pandas as pd
 import nltk
 import re
+import sys
 from nltk import pos_tag
-from nltk import word_tokenize
+import math
+from decimal import Decimal
+DEBUGFLAG = True
+pmiCutoff = 4
+from nltk import TreebankWordTokenizer
+from nltk.probability import FreqDist, ConditionalFreqDist
+from nltk.corpus import stopwords
+from urlextract import URLExtract #Tests whether a string is a valid url
+from email.utils import parseaddr #Test for valid email address
+from nltk.collocations import BigramAssocMeasures
 
-
-def generateBigramsList(myEmailDf):
+def isProperty(token):
     '''
-    bigramsList = []
-    for index, row in myEmailDf.iterrows():
+    Return true if the token is a property like uid=40911
+    '''
+    if re.match('\w+=\w+', token):
+        return True
+    else:
+        return False
 
-        subject = row['subject']
-        body = row['body']
+def isPunctuation(token):
+    if (token in [',', '.', ':', '...', ';', '(', ')','--']):
+        return True
+    else:
+        return False
 
-        if (len(body) > 0):
-    '''        
-    return None
+def nonAlphaMatch(token, config):
+    if config['nonAlphaRegex'].match(token):
+        return True
+    else:
+        return False
+
+def isEmailAddress(token):
+    '''
+    Return true if the token is a valid email address
+    '''
+    result = parseaddr(token)
+    if result[0] == '':
+        return False
+    else:
+        return True
+
+def isURL(token, config):
+    '''
+    Test if token is formated as URL
+    '''
+    if config['URLExtractor'].has_urls(token):
+        return True
+    else:
+        return False
+
+
+
+def isValidToken(word, config):
+    if word in config['stopWords']:
+        #Filter stop words
+        return False
+    elif (len(word) < 3):
+        #Make sure the token is 3 chars or longer
+        return False
+    elif (isPunctuation(word)):
+        #Make sure the token is not punctuation
+        return False
+    elif nonAlphaMatch(word, config):
+        #Make sure the token contains at least some letters
+        return False
+    elif isEmailAddress(word):
+        return False
+    elif isURL(word, config):
+        return False
+    elif isProperty(word):
+        return False
+    else:
+        return True
+
+def stripHighBitChars(text):
+    '''
+    The name says it all
+    '''
+    return("".join([char for char in text if ord(char) < 128]))
+
+def bigramsFromSentences(sentences, config):
+    '''
+    pass in a list of sentences,
+    get back a list of bigrams from same
+    '''
+    bigrams = [bigram for sentence in sentences for bigram in zip(
+        [word for word in config['wordTokenizer'].tokenize(stripHighBitChars(sentence).lower()) if isValidToken(word, config)][:-1],
+        [word for word in config['wordTokenizer'].tokenize(stripHighBitChars(sentence).lower()) if isValidToken(word, config)][1:]
+        )]
+    return(bigrams)
+
+def pmi(n_ii, n_ix, n_xi, n_xx):
+    '''
+    Pointwise mutual information for bigrams
+    '''
+    total_bigrams = n_ii + n_ix + n_xi + n_xx
+    total_bigrams_containing_w1 = n_ii + n_ix
+    total_bigrams_containing_w2 = n_ii + n_xi
+    d = Decimal((n_ii/(total_bigrams))/((total_bigrams_containing_w1/total_bigrams)*(total_bigrams_containing_w2/total_bigrams)))
+    return d.ln()
+
+def generateBigramsList(myEmailDf, config, catColname, catValue, n=20):
+    '''
+    extract the top n bigrams from the specified data frame
+    using chisq information gain score according to category
+    specified in df.catColname with value=catValue
+    '''
+        # Filter out empty rows
+    non_empty_df = myEmailDf[myEmailDf['body'].isnull() == False].sample(frac=.1)
+    #Make binary variable for in_category/not_in_category
+    non_empty_df['in_category'] = (non_empty_df[catColname] == catValue)
+
+    print("Original dataframe contains {} messages\nNon-empty datafram contains {} messages\n".format(
+        len(myEmailDf), len(non_empty_df)))
+
+    #myStemmer = SnowballStemmer('english')
+#    myTokenizer = TreebankWordTokenizer()
+
+    allWords = []
+    allBigrams = []
+    fdist = FreqDist()
+    cfdist = ConditionalFreqDist()
+
+    #Make sure we're assigning the right conditions
+    print(non_empty_df.groupby('in_category').count())
+    pos_bigram_count = 0
+    neg_bigram_count = 0
+
+
+    for (index, row) in non_empty_df.iterrows():
+        message = splitThread(row['body'], config)
+
+        #Calculate simple frequnecy distribution of terms in the vocabulary
+        allWords += [word for word in config['wordTokenizer'].tokenize(
+            stripHighBitChars(message).lower()
+            ) if isValidToken(word, config)
+                     ]
+
+        condition = row['in_category']
+        sentences = []
+        sentences = splitMessage(message, config)
+
+
+        bigrams = bigramsFromSentences(sentences, config)
+
+        #Tally up bigram occurrences and conditional occurrences
+        for bigram in bigrams:
+            fdist[bigram] += 1
+            cfdist[condition][bigram] += 1
+            if (condition == True):
+                pos_bigram_count += 1
+            else:
+                neg_bigram_count += 1
+            allBigrams.append(bigram)
+
+    total_bigram_count = pos_bigram_count + neg_bigram_count
+
+    bigram_chisq = {}
+    bigram_pmi = {}
+
+    fdistWords = FreqDist(allWords)
+
+    #Compute chisquared values for each bigram for each category
+    for bigram, freq in fdist.items():
+        pos_score = BigramAssocMeasures.chi_sq(cfdist[True][bigram],
+                                               (freq, pos_bigram_count),
+                                               total_bigram_count)
+        neg_score = BigramAssocMeasures.chi_sq(cfdist[False][bigram],
+                                               (freq, neg_bigram_count),
+                                               total_bigram_count)
+        bigram_chisq[bigram] = pos_score + neg_score
+        w1, w2 = bigram
+        bigram_pmi[bigram] = pmi(fdist[bigram], fdistWords[w1],
+                                 fdistWords[w2], total_bigram_count)
+
+    filtered = {k:v for k,v in bigram_chisq.items() if bigram_pmi[k] > pmiCutoff}
+    best = sorted(filtered.items(), key=lambda x: x[1], reverse=True)[0:n]
+    best_bigrams = [b for b,s in best]
+
+    if (DEBUGFLAG):
+        print("Min: {}".format(min(bigram_pmi.items(), key=lambda x: x[1])))
+        print("Max: {}".format(max(bigram_pmi.items(), key=lambda x: x[1])))
+
+        for b in best_bigrams:
+            print("{}|{}".format(b, bigram_pmi[b]))
+
+    return best_bigrams
 
 class MessageFeaturesCollection:
 
     '''
     Just a conventient collection of properties of each email message...
     '''
-    def __init__(self, messageText, config):
+    def __init__(self, messageText, config, informativeBigrams):
         self._sentences = splitMessage(messageText, config)
-        self._taggedSentences = [pos_tag(word_tokenize(sentence)) for sentence in self._sentences]
-        self.wordCount = len(word_tokenize(messageText))
+        self._taggedSentences = [pos_tag(config['wordTokenizer'].tokenize(sentence)) for sentence in self._sentences]
+        self._bigrams = bigramsFromSentences(self._sentences, config)
+
+        self.wordCount = len(config['wordTokenizer'].tokenize(messageText))
         self.sentenceCount = len(self._sentences)
         self.questionCount = self.countQuestions(self._taggedSentences, config)
         self.verbCount = self.countVerbs(self._taggedSentences)
@@ -35,6 +212,73 @@ class MessageFeaturesCollection:
         self.punctuationPerSentence = ((self.punctuationCount / self.sentenceCount) if self.sentenceCount > 0 else 0)
         self.hasGreeting = self.includesGreeting(self._sentences, config)
         self.hasSignoff = self.includesSignoff(self._sentences, config)
+        self.b0 = self.containsBigram(informativeBigrams[0])
+        self.b1 = self.containsBigram(informativeBigrams[1])
+        self.b2 = self.containsBigram(informativeBigrams[2])
+        self.b3 = self.containsBigram(informativeBigrams[3])
+        self.b4 = self.containsBigram(informativeBigrams[4])
+        self.b5 = self.containsBigram(informativeBigrams[5])
+        self.b6 = self.containsBigram(informativeBigrams[6])
+        self.b7 = self.containsBigram(informativeBigrams[7])
+        self.b8 = self.containsBigram(informativeBigrams[8])
+        self.b9 = self.containsBigram(informativeBigrams[9])
+        self.b10 = self.containsBigram(informativeBigrams[10])
+        self.b11 = self.containsBigram(informativeBigrams[11])
+        self.b12 = self.containsBigram(informativeBigrams[12])
+        self.b13 = self.containsBigram(informativeBigrams[13])
+        self.b14 = self.containsBigram(informativeBigrams[14])
+        self.b15 = self.containsBigram(informativeBigrams[15])
+        self.b16 = self.containsBigram(informativeBigrams[16])
+        self.b17 = self.containsBigram(informativeBigrams[17])
+        self.b18 = self.containsBigram(informativeBigrams[18])
+        self.b19 = self.containsBigram(informativeBigrams[19])
+
+
+    def print(self):
+        properties = [
+            self.wordCount,
+            self.sentenceCount,
+            self.questionCount,
+            self.verbCount,
+            self.modalVerbCount,
+            self.presentTenseVerbCount,
+            self.punctuationCount,
+            self.punctuationPerSentence,
+            self.hasGreeting,
+            self.hasSignoff,
+            self.b0,
+            self.b1,
+            self.b2,
+            self.b3,
+            self.b4,
+            self.b5,
+            self.b6,
+            self.b7,
+            self.b8,
+            self.b9,
+            self.b10,
+            self.b11,
+            self.b12,
+            self.b13,
+            self.b14,
+            self.b15,
+            self.b16,
+            self.b17,
+            self.b18,
+            self.b19
+            ]
+        print("|".join([str(property) for property in properties]))
+
+
+    def containsBigram(self, bigram):
+        '''
+        Is this bigram contained in this message?
+        '''
+        if (bigram in self._bigrams):
+            return True
+        else:
+            return False
+
 
     def countVerbs(self, taggedSentences):
         result = 0
@@ -93,7 +337,7 @@ class MessageFeaturesCollection:
             if (config['greetingWordsRE'].match(sentence)):
                 return True
         return False
-        
+
     def includesSignoff(self, sentences, config):
         '''
         Does this email end with an explicit signoff like 'Sincerely, yours, regards...
@@ -108,19 +352,29 @@ class MessageFeaturesCollection:
                 return True
         return False
 
-def initializeFeatureExtractor():
+def initializeFeatureExtractor(DEGUGFLAG=False):
     config = dict()
-    messageDelimiters = ['(.*)From: '] #Marks start of replied to message in email body
-    config['messageDelimitersRE'] = re.compile('|'.join(messageDelimiters))
+    config['messageDelimiter'] = 'From: ' #Marks start of replied to message in email body
 
+    if DEBUGFLAG:
+        sys.stderr.write("initializing sentence and word tokenizers...\n")
     config['sentenceSplitter'] = nltk.data.load('tokenizers/punkt/english.pickle')
 
+    config['wordTokenizer'] = TreebankWordTokenizer()
+
     config['fields'] = [
-        'sentenceCount',
         'wordCount',
+        'sentenceCount',
+        'questionCount',
+        'verbCount',
         'presentTenseVerbCount',
         'modalVerbCount',
-        'punctuationCount'
+        'punctuationCount',
+        'punctuationPerSentence',
+        'hasGreeting',
+        'hasSignoff',
+        'b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9', 'b10',
+        'b11', 'b12', 'b13', 'b14', 'b15', 'b16', 'b17', 'b18', 'b19'
     ]
 
     config['whWords'] = ['who', 'what', 'where', 'why', 'how', 'which']
@@ -130,26 +384,28 @@ def initializeFeatureExtractor():
     greetingString = ".*|.*".join(config['greetingWords'])
     config['greetingWordsRE'] = re.compile(greetingString, re.IGNORECASE)
 
-    config['signoffWords'] = ['.*sincerely', 'thanks', 'best wishes', 'v/r', 'cheers', 
+    config['signoffWords'] = ['.*sincerely', 'thanks', 'best wishes', 'v/r', 'cheers',
     'regards', 'faithfully', 'yours truly', 'yours sincerely', 'best regards', 'sincerely yours.*']
     signoffString  = ".*|.*".join(config['signoffWords'])
     config['signoffWordsRE'] = re.compile(signoffString, re.IGNORECASE)
+
+    config['stopWords'] = set(stopwords.words('english'))
+
+    config['nonAlphaRegex'] = re.compile('^[^a-z]+$', re.IGNORECASE)
+
+    config['URLExtractor'] = URLExtract()
 
     return (config)
 
 def printHeaders(fields):
     allFields = fields + ['subject', 'message']
     print("|".join(allFields))
-          
+
 def splitThread(text, myConfig):
     '''
-    return list of messages
+    return first in list of messages, splitting on delimiter from config
     '''
-    myMatch = myConfig['messageDelimitersRE'].search(text)
-    if myMatch == None:
-        return(text)
-    else:
-        return (myMatch.group(0))
+    return text.split(myConfig['messageDelimiter'])[0]
 
 def splitMessage(text, myConfig):
     '''
@@ -179,11 +435,17 @@ def isPunctuation(tag):
         return True
     else:
         return False
-    
+
 def extractFeatures(myConfig):
-    
+
     #Read in csv of emails
     email_df = pd.read_csv('../data/pv_email/combined_emails.csv', sep='|')
+
+    #Extract bigrams
+    if (DEBUGFLAG):
+        sys.stderr.write("Selecting informative bigrams...\n")
+    informativeBigrams = extractBigrams(email_df, myConfig, 'cat',
+                                        'fraud_waste_abuse', 50)
 
     #Split into threads
     for index, row in email_df.iterrows():
@@ -205,9 +467,9 @@ def extractFeatures(myConfig):
             messageMetadata['presentTenseVerbCount'] = 0
             messageMetadata['modalVerbCount'] = 0
             messageMetadata['punctuationCount'] = 0
-            
+
             for sentence in sentences:
-                words = word_tokenize(sentence)
+                words = config['wordTokenizer'].tokenize(sentence)
                 messageMetadata['wordCount'] += len(words)
                 taggedWords = pos_tag(words)
 
@@ -228,13 +490,84 @@ def extractFeatures(myConfig):
 
         #Capitalization
 
-    #C. Meaningful bigrams
+'''
+def extractBigrams(myDf, config, catColname, catValue, n=20):
 
-    #Write out results
-    
-if (__name__ == '__main__'):
-    config = initializeFeatureExtractor()
-    printHeaders(config['fields'])
-    extractFeatures(config)
+    email_df = myDf
+    #Add rowid
+    email_df['rownum'] = range(0, len(email_df))
 
+    # Filter out empty rows
+    non_empty_df = email_df[email_df['body'].isnull() == False].sample(frac=.1)
+    #Make binary variable for in_category/not_in_category
+    non_empty_df['in_category'] = (non_empty_df[catColname] == catValue)
 
+    print("Original dataframe contains {} messages\nNon-empty datafram contains {} messages\n".format(
+        len(email_df), len(non_empty_df)))
+
+    #myStemmer = SnowballStemmer('english')
+    myTokenizer = TreebankWordTokenizer()
+
+    allWords = []
+    allBigrams = []
+    fdist = FreqDist()
+    cfdist = ConditionalFreqDist()
+
+    #Make sure we're assigning the right conditions
+    print(non_empty_df.groupby('in_category').count())
+    pos_bigram_count = 0
+    neg_bigram_count = 0
+
+    for (index, row) in non_empty_df.iterrows():
+        message = splitThread(row['body'], config)
+
+        #Calculate simple frequnecy distribution of terms in the vocabulary
+        allWords += [word for word in myTokenizer.tokenize(
+            stripHighBitChars(message).lower()
+        ) if isValidToken(word)
+        ]
+
+        condition = row['in_category']
+        sentences = []
+        sentences = splitMessage(message, config)
+
+        bigrams = [bigram for sentence in sentences for bigram in zip(
+            [word for word in myTokenizer.tokenize(stripHighBitChars(sentence).lower()) if isValidToken(word)][:-1],
+            [word for word in myTokenizer.tokenize(stripHighBitChars(sentence).lower()) if isValidToken(word)][1:]
+        )]
+
+        #Tally up bigram occurrences and conditional occurrences
+        for bigram in bigrams:
+            fdist[bigram] += 1
+            cfdist[condition][bigram] += 1
+            if (condition == True):
+                pos_bigram_count += 1
+            else:
+                neg_bigram_count += 1
+            allBigrams.append(bigram)
+
+    total_bigram_count = pos_bigram_count + neg_bigram_count
+
+    bigram_chisq = {}
+    bigram_pmi = {}
+
+    #Compute chisquared values for each bigram for each category
+    for bigram, freq in fdist.items():
+        pos_score = BigramAssocMeasures.chi_sq(cfdist[True][bigram],
+                                               (freq, pos_bigram_count),
+                                               total_bigram_count)
+        neg_score = BigramAssocMeasures.chi_sq(cfdist[False][bigram],
+                                               (freq, neg_bigram_count),
+                                               total_bigram_count)
+
+        bigram_chisq[bigram] = pos_score + neg_score
+        w1, w2 = bigram
+        bigram_pmi = pmi(fdist[bigram], fdistWords[w1],
+                         fdistWords[w2], total_bigram_count)
+
+    filtered = {k:v for k,v in bigram_chisq.items() if bigram_pmi[k] > pmiCutoff}
+    best = sorted(bigram_scores.items(), key=lambda x: x[1], reverse=True)[0:n]
+    best_bigrams = [b for b,s in best]
+
+    return best_bigrams
+'''
