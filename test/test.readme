@@ -1,6 +1,9 @@
 Unit test files
+6 unit tests for functions in wrangling emails.
 
 To run: 
-python -m unittest test_wrangle.py
+python test_wrangle.py -d <ROOT_DIRECTORY_PATH>
+
+The root directory path is the top level of the email_marker directory substructure.
 
 Look for any errors in output report - adjust accordingly.
