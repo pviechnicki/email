@@ -6,6 +6,7 @@ import pandas as pd
 import os
 from wrangle_utils import initialize_wrangle_config
 from io import BytesIO
+from collections import defaultdict
 
 
 '''
@@ -52,14 +53,12 @@ class TestWrangleFuncs(unittest.TestCase):
 		with open(test_json_filename) as f:
 			test_json_file = f.read()
 
-		missing_fields_dict = defaultdict(list)
-		fn = 1
 
 		test_json_str = json.loads(test_json_file)
 
-		correct_test_return = ('1AJPU7S4T2U4.9RRJTZ4W0TT41@mimefactory.state.tld', 'of referring to white political dominance. The', [], '2017-11-06T23:59:26', 'Normal', 'The Real American Love Story', 'Sensitivity Official', 'Enterprise Services,eRecords,eRecords Service Accounts')
+		correct_test_return = ({},'test@test.state.tld', 'of referring', [], '2017-11-06T23:59:26', 'Normal', 'The Real American Love Story', 'Sensitivity Official', 'Enterprise Services,eRecords,eRecords Service Accounts', True, '', '', '', '', '', "dict_values(['IsTransitory', ['False']])")
 
-		self.assertEqual(parse_json_object(test_json_str, fn, missing_fields_dict), correct_test_return)
+		self.assertEqual(parse_json_object(test_json_str, 1, defaultdict(list), test=True), (correct_test_return))
 
 	def test_remove_non_ascii_characters(self):
 		'''
@@ -73,6 +72,7 @@ class TestWrangleFuncs(unittest.TestCase):
 		Converse: checks that you're not removing any ascii characters by accident
 		Inspiration from https://stackoverflow.com/questions/5891453/is-there-a-python-library-that-contains-a-list-of-all-the-ascii-characters/5891509
 		'''
+		from wrangle_utils import remove_non_ascii_characters
 		all_ascii_chars = ''.join([chr(i) for i in range(128)])
 		self.assertEqual(remove_non_ascii_characters(all_ascii_chars), all_ascii_chars)
 		
@@ -93,13 +93,22 @@ class TestWrangleFuncs(unittest.TestCase):
 		tests that if you pass the function variables it assigns those variables to the correct column and writes to the dataframe
 		'''
 		from wrangle_utils import create_df
-		test_email_df = pd.DataFrame(columns = ['messageId', 'subject', 'sent_date', 'importance', 'body', 'sensitivity', 'attachment_count', 'org_unit'])
-		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM',test_email_df,False,0)['messageId'].iloc[0],'1')
-		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM',test_email_df,False,0)['subject'].iloc[0],'hello')
-		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM',test_email_df,False,0)['sent_date'].iloc[0],'1/1/2018')
-		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM',test_email_df,False,0)['importance'].iloc[0],'high')
-		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM',test_email_df,False,0)['body'].iloc[0],'hello world')
-		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM',test_email_df,False,0)['sensitivity'].iloc[0],'Sensitivity Personal')
+
+		test_email_df = pd.DataFrame(columns = ['messageId', 'subject', 'sent_date', 'importance', 'body','sensitivity', 'is_transitory','attachments','is_state','org_unit', 'user_type', 'country', 'department', 'office', 'division'])
+		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM','Yes','contractor','USA','IRM/MSO','SA-28','MD','False',test_email_df,False,0)['messageId'].iloc[0],'1')
+		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM','Yes','contractor','USA','IRM/MSO','SA-28','MD','False',test_email_df,False,0)['subject'].iloc[0],'hello')
+		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM','Yes','contractor','USA','IRM/MSO','SA-28','MD','False',test_email_df,False,0)['sent_date'].iloc[0],'1/1/2018')
+		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM','Yes','contractor','USA','IRM/MSO','SA-28','MD','False',test_email_df,False,0)['importance'].iloc[0],'high')
+		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM','Yes','contractor','USA','IRM/MSO','SA-28','MD','False',test_email_df,False,0)['body'].iloc[0],'hello world')
+		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM','Yes','contractor','USA','IRM/MSO','SA-28','MD','False',test_email_df,False,0)['sensitivity'].iloc[0],'Sensitivity Personal')
+		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM','Yes','contractor','USA','IRM/MSO','SA-28','MD','False',test_email_df,False,0)['org_unit'].iloc[0],'IRM')
+		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM','Yes','contractor','USA','IRM/MSO','SA-28','MD','False',test_email_df,False,0)['is_state'].iloc[0],'Yes')
+		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM','Yes','contractor','USA','IRM/MSO','SA-28','MD','False',test_email_df,False,0)['user_type'].iloc[0],'contractor')
+		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM','Yes','contractor','USA','IRM/MSO','SA-28','MD','False',test_email_df,False,0)['country'].iloc[0],'USA')
+		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM','Yes','contractor','USA','IRM/MSO','SA-28','MD','False',test_email_df,False,0)['department'].iloc[0],'IRM/MSO')
+		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM','Yes','contractor','USA','IRM/MSO','SA-28','MD','False',test_email_df,False,0)['office'].iloc[0],'SA-28')
+		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM','Yes','contractor','USA','IRM/MSO','SA-28','MD','False',test_email_df,False,0)['division'].iloc[0],'MD')
+		self.assertEqual(create_df('1','hello','0','1/1/2018','high','hello world','Sensitivity Personal','IRM','Yes','contractor','USA','IRM/MSO','SA-28','MD','False',test_email_df,False,0)['is_transitory'].iloc[0],'False')
 
 if __name__ == "__main__":
 	unittest.main()

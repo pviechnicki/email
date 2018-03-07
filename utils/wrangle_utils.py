@@ -62,7 +62,7 @@ def irm_decrypt(file_name, directory):
 
 
 
-def parse_json_object(json_text, fn, missing_fields_dict):
+def parse_json_object(json_text, fn, missing_fields_dict, test=False):
 	'''
 	extracts relevant information from the json object and returns variables that contain information
 	'''
@@ -87,7 +87,7 @@ def parse_json_object(json_text, fn, missing_fields_dict):
 		user_type = from_dict['userType']
 	except KeyError:
 		user_type = ''
-		missing_fields_dict[fn].append('user_type,')
+		missing_fields_dict[fn].append('user_type')
 		
 	try:
 		country = from_dict['country']
@@ -119,6 +119,11 @@ def parse_json_object(json_text, fn, missing_fields_dict):
 	sensitivity.strip()
 	is_transitory = str(next((p.values() for p in properties_list if p.get('key')== 'IsTransitory')))
 
+	if test == True:
+		missing_fields_dict = {}
+
+	else:
+		missing_fields_dict = {}
 	return missing_fields_dict, messageId, subject, attachments, sent_date, importance, body, sensitivity, org_unit, is_state, user_type, country, department, office, division, is_transitory
 
 def initialize_wrangle_config():
