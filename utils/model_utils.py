@@ -14,6 +14,7 @@ from sklearn.cross_validation import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn import metrics
 import pickle
+from nltk.probability import FreqDist, ConditionalFreqDist
 #trying to re-add to git
 def remove_empty_emails(email_df):
 	#Add rowid
@@ -41,6 +42,8 @@ def remove_empty_emails(email_df):
 
 	return non_empty_df
 
+
+
 def train_test_set(non_empty_df):
 	#Create a training set and test set, 80% 20%
 	train_df, test_df = train_test_split(non_empty_df, train_size = 0.8, random_state=44)
@@ -50,6 +53,54 @@ def train_test_set(non_empty_df):
 
 	return train_df, test_df, class_labels_test, class_labels_training, value_counts
 
+def feature_selection(non_empty_df, n):
+
+	for index, row in non_empty_df.iterrows():
+		try:
+			split_message = row['body'].split('From')
+			message = split_message[0]
+			# words = word_tokenize(message)
+			# for word in words:
+			# 	print(word)
+			# 	allWords.append(word)
+
+		except:
+			message = row['body']
+			# words = word_tokenize(message)
+			# for word in words:
+			# 	allWords.append(word)
+	# print(allWords[0:10])
+	allWords = myTokenize(message)
+	fdist = FreqDist()
+	cfdist = ConditionalFreqDist()
+
+	pos_word_count = 0
+	neg_word_count = 0
+
+
+
+	condition = row['personal']
+
+	all_unique_words = set(allWords)
+
+	for word in all_unique_words:
+		fdist[word] +=1
+		cfdist[condition][word] += 1
+		if (condition == True):
+			pos_word_count +=1
+		else:
+			neg_word_count +=1
+
+	word_chisq = {}
+	fdistWords = FreqDist(allWords)
+	for word, freq in fdist.items():
+		pos_score = fdistWords.chi_sq(cfdist[True][word],(freq, pos_word_count),len(all_unique_words))
+		neg_score = fdistWords.chi_sq(cfdist[False][word],(freq, neg_word_count), len(all_unique_words))
+		word_chisq[word] = pos_score + neg_score
+    
+	best_words = sorted(word_chisq.items(), key=lambda x: x[1], reverse=True)[0:n]
+
+	return best_words
 
 def create_doc_matrices(train_df, test_df):
 	##Instantiate a TFidf vectorizer
@@ -64,6 +115,8 @@ def create_doc_matrices(train_df, test_df):
 	test_X = vectorizer.transform(test_df['body'])
 
 	return train_X, test_X, feature_names
+
+
 
 def create_naive_bayes(train_X, class_labels_training):
 	#The alpha value is the sensitivity parameter.
