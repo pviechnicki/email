@@ -33,7 +33,7 @@ for o, a in opts:
         from load_directories import directory_loader
         input_directory, output_directory = directory_loader(parent_path)
 
-email_df = pd.read_csv(output_directory + '//' + 'Master_df.csv')
+email_df = pd.read_csv(output_directory + '//' + 'Master_df.bsv' , delimiter = "|")
 
 geolocator = Nominatim()
 country_df = email_df.groupby(['country', 'sensitivity','user_type'])['messageId'].count()
@@ -79,7 +79,17 @@ app.layout = html.Div(children = [
         rel='stylesheet',
         href='/static/bWLwgP.css'
     ),
-    html.H1(children = 'My Map'),
+    html.H1(children = 'Where Are My Emails Coming From?'),
+        html.Div(id='dropdown_div', children= [
+        html.H3("Select Sensitivity of Interest"),
+        dcc.Dropdown
+        (
+            id='my_dropdown',
+            options = [{'label': sensitivity, 'value': sensitivity} for sensitivity in my_sensitivities],
+            value = 'Sensitivity Official'
+        )
+    ]
+    ),
     html.Div(
         id = "mapDiv",
         children =
@@ -117,8 +127,8 @@ app.layout = html.Div(children = [
                                 )
                             )
                         ) #layout dict
-                    } #figure
-            ) #dcc.graph
+                    }, #figure
+            className = 'six columns') #dcc.graph
         ]
     ),
         html.Div(
@@ -133,29 +143,21 @@ app.layout = html.Div(children = [
                             x = list((country_df['messageId'])),
                             y = list(country_df['user_type']),
                             marker = go.Marker(
-                                color = 'rgb(26,118,255)')
-
-                                # color = country_df['sensitivity']
+                                color = 'rgb(26,118,255)'),
+                        orientation = 'h'
+                                
                             ) #data dict
                         ], #data
                     "layout": dict(
                         height = 500,
                         width = 1000,
+                        autorange = False
                         ) #layout dict
-                    } #figure
-            ) #dcc.graph
-        ]
-    ),
-    html.Div(id='dropdown_div', children= [
-        html.H3("Select Sensitivity of Interest"),
-        dcc.Dropdown
-        (
-            id='my_dropdown',
-            options = [{'label': sensitivity, 'value': sensitivity} for sensitivity in my_sensitivities],
-            value = 'All'
-        )
-    ]
+                    }, #figure
+            className = 'six columns') #dcc.graph
+        ], className = 'row'
     )
+
 ])
 
 @app.callback(
@@ -175,7 +177,7 @@ def update_map_data(new_value):
                 lon = filtered_df['long'],
                 marker = dict(
                     size = filtered_df['messageId']),
-                text = filtered_df['country'],
+                text = filtered_df['country']
                     # color = country_df['sensitivity']
                 ) #data dict
             ], #data
@@ -209,7 +211,8 @@ def update_bar_data(new_value):
                     x = list(filtered_df['messageId']),
                     y = list(filtered_df['user_type']),
                     marker = go.Marker(
-                        color = 'rgb(26,118,255)')
+                        color = 'rgb(26,118,255)'),
+                    orientation = 'h'
 
                         # color = country_df['sensitivity']
                     ) #data dict
@@ -217,6 +220,7 @@ def update_bar_data(new_value):
             "layout": dict(
                 height = 500,
                 width = 1000,
+                autorange = False
                 )
         }
 
