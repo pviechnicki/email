@@ -7,18 +7,30 @@ import os
 from wrangle_utils import initialize_wrangle_config
 from io import BytesIO
 
+
 '''
 tests all functions in wrangle.utils
 '''
 
 class TestWrangleFuncs(unittest.TestCase):
 
-	def test_irm_decrypt(self, input_directory):
+	
+	def setUp(self):
+		sys.path.append("../utils")
+		from load_directories import directory_loader
+		input_directory, output_directory = directory_loader("..")
+		self.input_directory = input_directory
+
+
+	def tearDown(self):
+		return
+
+	def test_irm_decrypt(self):
 		'''
 		tests that if you feed the function an encrypted zip it returns a decrypted zip with 4 json files
 		'''
 		from wrangle_utils import irm_decrypt
-		test_directory = input_directory
+		test_directory = self.input_directory
 		test_zipfilename = '2018-01-23Z00.56.06.192.zip.aes'
 
 		decrypted_zip = irm_decrypt(test_zipfilename, test_directory)
@@ -29,14 +41,14 @@ class TestWrangleFuncs(unittest.TestCase):
 				self.assertEqual(filename[-5:],'.json', "Unrecognized file format {}: expecting .json".format(filename))
 			self.assertEqual(len(filenames),4, "Expecting 4 files, found {}".format(len(filenames)))
 
-	def test_parse_json_object(self, input_directory):
+	def test_parse_json_object(self):
 
 		'''
 		tests that if you pass a email in the form of a json string 
 		it returns the correct parts for message id, subject, attachment count, sent dat, importance, body, sensitivity, and org_unit
 		'''
 		from wrangle_utils import parse_json_object
-		test_json_filename = input_directory + '//' + 'TEST.json'
+		test_json_filename = self.input_directory + '//' + 'TEST.json'
 		with open(test_json_filename) as f:
 			test_json_file = f.read()
 

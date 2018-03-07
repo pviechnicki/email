@@ -39,9 +39,8 @@ def test():
 			parent_path = a
 			sys.path.insert(0, parent_path + '//' + 'utils')
 			from load_directories import directory_loader
-			input_directory, output_directory = directory_loader(parent_path)
-			from test_wrangle_utils import test_wrangle_funcs
-			TestWrangleFuncs = test_wrangle_funcs(input_directory)
+			from test_wrangle_utils import TestWrangleFuncs
+			test_wrangle_funcs = TestWrangleFuncs()
 			runner = unittest.TextTestRunner()
 			results = runner.run(unittest.makeSuite(TestWrangleFuncs))
 
