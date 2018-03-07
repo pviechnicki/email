@@ -99,34 +99,35 @@ def wrangle():
 			except:
 				sys.stderr.write('wrangle.py ERROR: email_df was not an empty DataFrame')
 				return False
-
-			with zipfile.ZipFile(fileLikeZip) as z:
-				json_files = [fn for fn in z.namelist()]
-				try:
-					assert len(json_files) == 30
-				except:
-					weird_directories[zfn] = len(json_files)
-					# sys.stderr.write('wrangle.py ERROR: THERE WERE {} FILES IN THE DIRECTORY'.format(len(json_files)))
-
-				for index, fn in enumerate(json_files):
+			try:
+				with zipfile.ZipFile(fileLikeZip) as z:
+					json_files = [fn for fn in z.namelist()]
 					try:
-						assert fn[-5:] == '.json'
+						assert len(json_files) == 30
 					except:
-						sys.stderr.write('wrangle.py ERROR: FILE {} INSIDE ZIP WAS NOT A JSON'.format(fn))
-						return False
-					
+						weird_directories[zfn] = len(json_files)
+						# sys.stderr.write('wrangle.py ERROR: THERE WERE {} FILES IN THE DIRECTORY'.format(len(json_files)))
 
-					emailCounter += 1
-					
-					#Only write output if we're below the number of emails requested
-					if (emailCounter <= numberRequested):
-						json_str = z.read(fn)
-						json_text = json.loads(json_str)
-						missing_fields_dict, messageId, subject, attachments, sent_date, importance, body, sensitivity, org_unit, is_state, user_type, country, department, office, division, is_transitory = parse_json_object(json_text, fn, missing_fields_dict)
-						body = remove_non_ascii_characters(body)
-						Sensitive = containsPII(body, wrangleConfig)
-						email_df = create_df(messageId, subject, attachments, sent_date, importance, body, sensitivity, org_unit, is_state, user_type, country, department, office, division, is_transitory, email_df, Sensitive, index)
-				
+					for index, fn in enumerate(json_files):
+						try:
+							assert fn[-5:] == '.json'
+						except:
+							sys.stderr.write('wrangle.py ERROR: FILE {} INSIDE ZIP WAS NOT A JSON'.format(fn))
+							return False
+						
+
+						emailCounter += 1
+						
+						#Only write output if we're below the number of emails requested
+						if (emailCounter <= numberRequested):
+							json_str = z.read(fn)
+							json_text = json.loads(json_str)
+							missing_fields_dict, messageId, subject, attachments, sent_date, importance, body, sensitivity, org_unit, is_state, user_type, country, department, office, division, is_transitory = parse_json_object(json_text, fn, missing_fields_dict)
+							body = remove_non_ascii_characters(body)
+							Sensitive = containsPII(body, wrangleConfig)
+							email_df = create_df(messageId, subject, attachments, sent_date, importance, body, sensitivity, org_unit, is_state, user_type, country, department, office, division, is_transitory, email_df, Sensitive, index)
+			except:
+				sys.stderr.write('wrangle.py ERROR: FILE {} INSIDE ZIP WAS NOT A JSON'.format(fn))
 
 			Master_df = Master_df.append(email_df)
 			

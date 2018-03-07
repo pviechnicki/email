@@ -49,14 +49,14 @@ class TestWrangleFuncs(unittest.TestCase):
 		it returns the correct parts for message id, subject, attachment count, sent dat, importance, body, sensitivity, and org_unit
 		'''
 		from wrangle_utils import parse_json_object
-		test_json_filename = self.input_directory + '//' + 'TEST.json'
+		test_json_filename = self.input_directory + '//' + 'Test'+'//' + 'TEST.json'
 		with open(test_json_filename) as f:
 			test_json_file = f.read()
 
 
 		test_json_str = json.loads(test_json_file)
 
-		correct_test_return = ({},'test@test.state.tld', 'of referring', [], '2017-11-06T23:59:26', 'Normal', 'The Real American Love Story', 'Sensitivity Official', 'Enterprise Services,eRecords,eRecords Service Accounts', True, '', '', '', '', '', "dict_values(['IsTransitory', ['False']])")
+		correct_test_return = ({},'test@test.state.tld', 'of referring', [], '2017-11-06T23:59:26', 'Normal', 'The Real American Love Story', 'Sensitivity Official', 'Enterprise Services,eRecords,eRecords Service Accounts', True, '', '', '', '', '', 'False')
 
 		self.assertEqual(parse_json_object(test_json_str, 1, defaultdict(list), test=True), (correct_test_return))
 

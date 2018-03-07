@@ -56,7 +56,7 @@ def irm_decrypt(file_name, directory):
 
 		return decrypted_zip
 	else: 
-		sys.stderr.write("Warning: Unrecognized file type {} passed to irm_decrypt. Skipping.".format(fn))
+		sys.stderr.write("Warning: Unrecognized file type {} passed to irm_decrypt. Skipping.".format(file_name))
 		return None
 
 
@@ -118,12 +118,19 @@ def parse_json_object(json_text, fn, missing_fields_dict, test=False):
 	sensitivity = ''.join(ch for ch in sensitivity if ch not in exclude)
 	sensitivity.strip()
 	is_transitory = str(next((p.values() for p in properties_list if p.get('key')== 'IsTransitory')))
+	is_transitory = is_transitory.split(",")
+	is_transitory = is_transitory[1]
+	is_transitory = ''.join(ch for ch in is_transitory if ch not in exclude)
+	is_transitory = is_transitory.strip()
+	# is_transitory = test.values()
+	# trans_list_2 = list(trans_list.values())
+	# is_transitory = trans_list_2[1]
 
 	if test == True:
 		missing_fields_dict = {}
 
 	else:
-		missing_fields_dict = {}
+		missing_fields_dict = missing_fields_dict
 	return missing_fields_dict, messageId, subject, attachments, sent_date, importance, body, sensitivity, org_unit, is_state, user_type, country, department, office, division, is_transitory
 
 def initialize_wrangle_config():
