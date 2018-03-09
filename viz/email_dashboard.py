@@ -48,7 +48,6 @@ for o, a in opts:
         input_directory, output_directory = directory_loader(parent_path)
 
 raw_df = pd.read_csv(output_directory + '//' + 'Master_df.csv')
-
 #Prepare two cross-tabs to support the pie and bar charts
 ct_orgs = pd.crosstab(raw_df.sensitivity, raw_df.org_unit, margins=True)
 

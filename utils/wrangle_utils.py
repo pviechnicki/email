@@ -70,7 +70,7 @@ def parse_json_object(json_text, fn, missing_fields_dict, test=False):
 	properties_list = json_text['metadata']['properties']
 	messageId = json_text['metadata']['message']['messageId']
 	subject = json_text['metadata']['message']['subject']
-	attachments = json_text['metadata']['attachments']
+	attachments = json_text['metadata']['attachments'][0]['text']
 	sent_date = json_text['metadata']['message']['sentDate']
 	importance = json_text['metadata']['message']['importance']
 	user_role_list = json_text['metadata']['users']
@@ -122,9 +122,6 @@ def parse_json_object(json_text, fn, missing_fields_dict, test=False):
 	is_transitory = is_transitory[1]
 	is_transitory = ''.join(ch for ch in is_transitory if ch not in exclude)
 	is_transitory = is_transitory.strip()
-	# is_transitory = test.values()
-	# trans_list_2 = list(trans_list.values())
-	# is_transitory = trans_list_2[1]
 
 	if test == True:
 		missing_fields_dict = {}

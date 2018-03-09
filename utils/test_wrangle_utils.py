@@ -56,7 +56,7 @@ class TestWrangleFuncs(unittest.TestCase):
 
 		test_json_str = json.loads(test_json_file)
 
-		correct_test_return = ({},'test@test.state.tld', 'of referring', [], '2017-11-06T23:59:26', 'Normal', 'The Real American Love Story', 'Sensitivity Official', 'Enterprise Services,eRecords,eRecords Service Accounts', True, '', '', '', '', '', 'False')
+		correct_test_return = ({},'test@test.state.tld', 'of referring', 'hello', '2017-11-06T23:59:26', 'Normal', 'The Real American Love Story', 'Sensitivity Official', 'Enterprise Services,eRecords,eRecords Service Accounts', True, '', '', '', '', '', 'False')
 
 		self.assertEqual(parse_json_object(test_json_str, 1, defaultdict(list), test=True), (correct_test_return))
 

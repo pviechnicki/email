@@ -13,6 +13,7 @@ def usage():
 	sys.stdout.write("Usage: python model.py [-d|--directory= <top directory of the github repository where your directory yaml sits>] [-h|?|--help]")	
 
 def run_model():
+	use_feature_selection = False
 	try:
 		opts, args = getopt.getopt(sys.argv[1:], "d:n:h?", ["--directory=", "--number=", "--help"])
 	except getopt.GetoptError as err:
@@ -30,12 +31,20 @@ def run_model():
 			input_directory, output_directory = directory_loader(parent_path)
 			from model_utils import remove_empty_emails
 			from model_utils import train_test_set
-			from model_utils import create_doc_matrices
+			from model_utils import create_doc_matrix
 			from model_utils import create_naive_bayes
 			from model_utils import NB_results
 			from model_utils import create_informative_terms
+			from model_utils import feature_selection
+		elif o in ('-n', '--number'):
+			try:
+				n = int(a)
+				use_feature_selection = True
+			except:
+				
+				sys.stder.write("Argument to -n|--number= option must be integer.")
 
-	email_df = pd.read_csv(output_directory + '//' + 'Master_df.csv')
+	email_df = pd.read_csv(output_directory + '//' + 'Master_df.bsv', delimiter = '|')
 
 	#creates sample df
 	## removes empty emails
@@ -45,8 +54,13 @@ def run_model():
 	#divides email df into a test and train set
 	train_df, test_df, class_labels_test, class_labels_training, value_counts = train_test_set(non_empty_df)
 
+	if use_feature_selection == True:
+		best_words, top_word_list = feature_selection(train_df, n)
+		train_X, test_X, feature_names = create_doc_matrix(train_df, test_df, top_word_list, feature_selection)
 
-	train_X, test_X, feature_names = create_doc_matrices(train_df, test_df)
+	else:
+		train_X, test_X, feature_names = create_doc_matrix(train_df, test_df)
+
 
 	model_nb = create_naive_bayes(train_X, class_labels_training)
 

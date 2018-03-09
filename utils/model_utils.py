@@ -15,6 +15,8 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn import metrics
 import pickle
 from nltk.probability import FreqDist, ConditionalFreqDist
+import scipy
+from scipy.stats import chisquare
 #trying to re-add to git
 def remove_empty_emails(email_df):
 	#Add rowid
@@ -29,12 +31,6 @@ def remove_empty_emails(email_df):
 
 	non_empty_df['personal'] = (non_empty_df['sensitivity'] == 'Sensitivity Personal')
 
-	#DELETE THIS FOR ACTUAL MODEL
-	# for i, row in non_empty_df.iterrows():
-	# 	if 'Russia' in row['body']:
-	# 		non_empty_df = non_empty_df.set_value(i, 'personal', 'True')
-	# print('SETTING ROWS TO PERSONAL THAT CONTAIN WORD RUSSIA - MAKE SURE TO REMOVE')
-	#Create a vector of class labels
 	class_labels = non_empty_df['personal']
 	#use value_counts() method of series
 	print(class_labels.value_counts())
@@ -53,69 +49,69 @@ def train_test_set(non_empty_df):
 
 	return train_df, test_df, class_labels_test, class_labels_training, value_counts
 
-def feature_selection(non_empty_df, n):
+def feature_selection(train_df, n):
 
-	for index, row in non_empty_df.iterrows():
-		try:
-			split_message = row['body'].split('From')
-			message = split_message[0]
-			# words = word_tokenize(message)
-			# for word in words:
-			# 	print(word)
-			# 	allWords.append(word)
-
-		except:
-			message = row['body']
-			# words = word_tokenize(message)
-			# for word in words:
-			# 	allWords.append(word)
-	# print(allWords[0:10])
-	allWords = myTokenize(message)
+	allWords = []
 	fdist = FreqDist()
 	cfdist = ConditionalFreqDist()
 
 	pos_word_count = 0
 	neg_word_count = 0
+	for index, row in train_df.iterrows():
+		try:
+			split_message = row['body'].split('From')
+			message = split_message[0]
+
+		except:
+			message = row['body']
+
+		message_words = myTokenize(message)
 
 
-
-	condition = row['personal']
-
-	all_unique_words = set(allWords)
-
-	for word in all_unique_words:
-		fdist[word] +=1
-		cfdist[condition][word] += 1
-		if (condition == True):
-			pos_word_count +=1
-		else:
-			neg_word_count +=1
+		condition = row['personal']
+		for word in message_words:
+			fdist[word] +=1
+			cfdist[condition][word] += 1
+			if (condition == True):
+				pos_word_count +=1
+			else:
+				neg_word_count +=1
+			allWords.append(word)
 
 	word_chisq = {}
+	combined_pvalue = {}
 	fdistWords = FreqDist(allWords)
-	for word, freq in fdist.items():
-		pos_score = fdistWords.chi_sq(cfdist[True][word],(freq, pos_word_count),len(all_unique_words))
-		neg_score = fdistWords.chi_sq(cfdist[False][word],(freq, neg_word_count), len(all_unique_words))
-		word_chisq[word] = pos_score + neg_score
-    
-	best_words = sorted(word_chisq.items(), key=lambda x: x[1], reverse=True)[0:n]
+	for word, freq in fdistWords.items():
+		print(word)
+		pos_stat, pos_pval = chisquare(cfdist[True][word],freq)
+		neg_stat, neg_pval = chisquare(cfdist[False][word],freq)
 
-	return best_words
+		word_chisq[word] = pos_stat + neg_stat
 
-def create_doc_matrices(train_df, test_df):
-	##Instantiate a TFidf vectorizer
-	vectorizer = TfidfVectorizer(sublinear_tf=True, encoding='utf-8', 
-                             max_df=0.5, tokenizer=myTokenize)
-	#This step can take a while
-	train_X = vectorizer.fit_transform(train_df['body'])
-	##Save feature names in a separate list
-	feature_names = vectorizer.get_feature_names()
-	#From http://fastml.com/classifying-text-with-bag-of-words-a-tutorial/
-	#Create another matrix of tfidf scores for the documents in the test set
-	test_X = vectorizer.transform(test_df['body'])
+	best_words = sorted(word_chisq.items(), key=lambda x: x[1], reverse = True)[0:n]
+
+	top_word_list = [item[0] for item in best_words]
+
+	return best_words, top_word_list
+
+def create_doc_matrix(train_df, test_df, top_word_list = False, use_feature_selection = False):
+	if use_feature_selection == True:
+		##Instantiate a TFidf vectorizer
+		vectorizer = TfidfVectorizer(sublinear_tf=True, encoding='utf-8', 
+	                             max_df=0.5, tokenizer=myTokenize, vocabulary = top_word_list)
+
+		train_X = vectorizer.fit_transform(train_df['body'])
+		test_X = vectorizer.fit_transform(test_df['body'])
+		feature_names = top_word_list
+	else:
+		##Instantiate a TFidf vectorizer
+		vectorizer = TfidfVectorizer(sublinear_tf=True, encoding='utf-8', 
+	                             max_df=0.5, tokenizer=myTokenize)
+		train_X = vectorizer.fit_transform(train_df['body'])
+		test_X = vectorizer.transform(test_df['body'])
+		feature_names = vectorizer.get_feature_names()
 
 	return train_X, test_X, feature_names
-
 
 
 def create_naive_bayes(train_X, class_labels_training):
@@ -157,6 +153,7 @@ def NB_results(model_nb, test_X, class_labels_test, test_df, output_directory):
 	return predictions, results
 
 def create_informative_terms(train_X, train_df, feature_names, test_df, output_directory):
+
 	informativeTerms = top_feats_by_class(train_X, train_df, feature_names, top_n=100)
 	#Should print out 10 most informative features for you
 	informativeTerms.head(10)
@@ -211,14 +208,16 @@ def preprocess(text):
     return no_punctuation_text
 
 def myTokenize(text):
-	global snowballStemmer
-	snowballStemmer = SnowballStemmer("english", ignore_stopwords=True)
+	# global snowballStemmer
+	global SnowballStemmer
+	SnowballStemmer = SnowballStemmer("english", ignore_stopwords = True)
 	tokens = []
 	cleaned = preprocess(text)
 	tokens = nltk.word_tokenize(cleaned)
 	filtered = [w for w in tokens if not w in stopwords.words('english')]
-	stemmed = [w for w in map(snowballStemmer.stem, filtered)]
+	stemmed = [w for w in map(SnowballStemmer.stem, filtered)]
 	return stemmed
+	# return filtered
 
 def truth_value(myRow):
     if (myRow['ground_truth'] == True and myRow['predicted_value'] == True):
