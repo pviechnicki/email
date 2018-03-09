@@ -70,7 +70,10 @@ def parse_json_object(json_text, fn, missing_fields_dict, test=False):
 	properties_list = json_text['metadata']['properties']
 	messageId = json_text['metadata']['message']['messageId']
 	subject = json_text['metadata']['message']['subject']
-	attachments = json_text['metadata']['attachments'][0]['text']
+	try:
+		attachments = json_text['metadata']['attachments'][0]['text']
+	except:
+		attachments = json_text['metadata']['attachments']
 	sent_date = json_text['metadata']['message']['sentDate']
 	importance = json_text['metadata']['message']['importance']
 	user_role_list = json_text['metadata']['users']

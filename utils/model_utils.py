@@ -209,13 +209,13 @@ def preprocess(text):
 
 def myTokenize(text):
 	# global snowballStemmer
-	global SnowballStemmer
-	SnowballStemmer = SnowballStemmer("english", ignore_stopwords = True)
+	global snowballStemmer
+	snowballStemmer = SnowballStemmer("english", ignore_stopwords = True)
 	tokens = []
 	cleaned = preprocess(text)
 	tokens = nltk.word_tokenize(cleaned)
 	filtered = [w for w in tokens if not w in stopwords.words('english')]
-	stemmed = [w for w in map(SnowballStemmer.stem, filtered)]
+	stemmed = [w for w in map(snowballStemmer.stem, filtered)]
 	return stemmed
 	# return filtered
 
