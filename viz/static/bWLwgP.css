@@ -16,7 +16,7 @@
 - Media Queries
 */
 
-/* PLotly.js 
+/* PLotly.js
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 /* plotly.js's modebar's z-index is 1001 by default
  * https://github.com/plotly/plotly.js/blob/7e4d8ab164258f6bd48be56589dacd9bdd7fded2/src/css/_modebar.scss#L5
@@ -131,7 +131,9 @@ body {
   line-height: 1.6;
   font-weight: 400;
   font-family: "Open Sans", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  color: rgb(50, 50, 50); }
+  color: rgb(50, 50, 50);
+  background-color: LightSlateGray;
+}
 
 
 /* Typography
@@ -165,7 +167,7 @@ blockquote {
 /* Links
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 a {
-  color: #1EAEDB; 
+  color: #1EAEDB;
   text-decoration: underline;
   cursor: pointer;}
 a:hover {
@@ -249,7 +251,7 @@ select {
   border: 1px solid #D1D1D1;
   border-radius: 4px;
   box-shadow: none;
-  box-sizing: border-box; 
+  box-sizing: border-box;
   font-family: inherit;
   font-size: inherit; /*https://stackoverflow.com/questions/6080413/why-doesnt-input-inherit-the-font-from-body*/}
 /* Removes awkward default styles on some inputs for iOS */
@@ -317,13 +319,19 @@ li {
 /* Tables
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 table {
-  border-collapse: collapse;
+    border-collapse: collapse;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: auto;
+    margin-bottom: auto;
 }
 th,
 td {
   padding: 12px 15px;
   text-align: left;
-  border-bottom: 1px solid #E1E1E1; }
+  border-bottom: 1px solid #E1E1E1;
+}
+td {   background-color: linen; }
 th:first-child,
 td:first-child {
   padding-left: 0; }
@@ -376,7 +384,15 @@ hr {
   border-top: 1px solid #E1E1E1; }
 .highlightme { background-color: #2ca02c; }
 .highlightedCell { background-color: lightblue; }
-.normalCell { background-color: white; }
+.normalCell { background-color: linen; }
+#contextEdgeLogo { width: 10%; }
+#appHeader { display: inline-block; }
+iframe { background-color: linen; }
+#termsTable td { text-align: center; }
+#termsTable th { text-align: center; }
+#truthTable td { text-align: center; }
+#accuracyTable td { text-align: center; }
+
 /* Clearing
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 

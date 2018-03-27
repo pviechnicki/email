@@ -24,12 +24,22 @@ import nltk
 from nltk.corpus import stopwords
 import getopt
 
+def usage():
+    sys.stdout.write("Usage: python viz_classifyer.py [-d|--directory= <top directory of the github repository where your directory yaml sits>] [-n|--number= <number of output emails requested>] [-h|?|--help]")
+    return True
+
 #---------------------------------------------------#
 # Return name of dataframe based on input parameter #
 #---------------------------------------------------#
 
 def chooseDF(responseClass):
 
+    global resultsDF_tp
+    global resultsDF_fp
+    global resultsDF_tn
+    global resultsDF_fn
+
+    print(type(resultsDF_tn))
     if responseClass == 'truePositive':
         return (resultsDF_tp)
     elif responseClass == 'falsePositive':
@@ -41,110 +51,56 @@ def chooseDF(responseClass):
     else:
         return Null
 
-#------------------------------------------------------------#
-# Update the bar chart based on the current email            #
-#------------------------------------------------------------#
-def updateBarChartData(currentEmail):
-    global feature_counts_training
-    global feature_counts_test
-    global visibleTermsList
 
-    currentTextTokenLength = countTokens(currentEmail)
-    currentTextTermFreqs = countFreqs(visibleTermsList, currentEmail)
-
-    myFigure = {
-        'data': [
-            go.Bar(
-                x = [(feature_counts_training[term]/totalTermCounts['trainTokensTotal'] * 1000)
-                     for term in visibleTermsList],
-                y = visibleTermsList,
-                name = 'Training Corpus',
-                orientation = 'h',
-                width = .2
-            ),
-            go.Bar(
-                x = [(feature_counts_test[term]/totalTermCounts['testTokensTotal'] * 1000)
-                     for term in visibleTermsList],
-                y = visibleTermsList,
-                name = 'Test Corpus',
-                orientation = 'h',
-                width = .2
-            ),
-            go.Bar(
-                x = [(currentTextTermFreqs[term]/currentTextTokenLength * 1000) for term in visibleTermsList],
-                y = visibleTermsList,
-                name = 'This Email',
-                orientation = 'h',
-                width = .2
-            )
-        ],
-        'layout': go.Layout(
-            xaxis= {
-                'title': 'Occurrences per 1000 word tokens',
-                'autorange': True
-            },
-            yaxis= {
-                'type': 'category',
-                'autorange': True,
-                'ticksuffix': '  ',
-                'categoryorder': 'category descending'},
-            width=500,
-            height=500,
-            title='Most Informative Terms',
-            barmode='group'
-        )
-    }
-    
-    return(myFigure)
 
 #------------------------------------------------------#
 # Prepare input data                                   #
 #Load results from classifier notebook
 #------------------------------------------------------#
-def usage():
-    sys.stdout.write("Usage: python viz_classifyer.py [-d|--directory= <top directory of the github repository where your directory yaml sits>] [-n|--number= <number of output emails requested>] [-h|?|--help]") 
+
+stopwords_english = stopwords.words('english')
+
 try:
     opts, args = getopt.getopt(sys.argv[1:], "d:n:h?", ["--directory=", "--number=", "--help"])
 except getopt.GetoptError as err:
     #Exit if can't parse args
-    usage() 
+    usage()
     sys.exit(2)
 for o, a in opts:
-        if (o == '-h' or o == '-?'):
-            usage()
-            exit(0)
-        elif o in ('-d', '--directory'):
-            parent_path = a
-            sys.path.insert(0, parent_path + '//' + 'utils')
-            from load_directories import directory_loader
-            input_directory, output_directory = directory_loader(parent_path)
-            from viz_utils import highlightTerms, formatEmail
-            from viz_utils import generateAccuracyTable,generateTruthTable
-            from viz_utils import countTokens, countFreqs
-            from email_utils import highlightTerms, formatEmail
-            from email_utils import generateAccuracyTable,generateTruthTable
-            from email_utils import countTokens, countFreqs
+    if (o == '-h' or o == '-?'):
+        usage()
+        exit(0)
+    elif o in ('-d', '--directory'):
+        parent_path = a
+        sys.path.insert(0, parent_path + '//' + 'utils')
+        from load_directories import directory_loader
+        input_directory, output_directory = directory_loader(parent_path)
+        from viz_utils import highlightTerms, formatEmail
+        from viz_utils import generateAccuracyTable,generateTruthTable
+        from viz_utils import countTokens, countFreqs
+        from viz_utils import load_term_scores
+        from viz_utils import generateTermsTable
 
 
-with open(output_directory + '//' + 'totalTermCounts.pyc', 'rb') as f:
-    totalTermCounts = pickle.load(f)
-f.close()
-with open(output_directory + '//' + 'informativeTerms.pyc', 'rb') as f:
-    informativeTerms = pickle.load(f)
-f.close()
+#Load term scores from csv
+with open(output_directory + '//' + 'termScores.csv', 'rt',
+          encoding='utf8', newline='') as f:
+    (headers, myData) = load_term_scores(f)
+    termScores = pd.DataFrame(data=myData,
+                              index = list(range(len(myData))),
+                              columns = headers)
+    f.close()
+
+#Load dict of accuracy scores for classifiery
 with open(output_directory + '//' + 'classifierStats.pyc', 'rb') as f:
     classifierStats = pickle.load(f)
-f.close()
+    f.close()
+
+#Load results of testing each test doc
 with open(output_directory + '//' + 'classifierTestResults.pyc', 'rb') as f:
     classifierTestResults = pickle.load(f)
-f.close()
-with open(output_directory + '//' + 'feature_counts_training.pyc', 'rb') as f:
-    feature_counts_training = pickle.load(f)
-f.close()
-with open(output_directory + '//' + 'feature_counts_test.pyc', 'rb') as f:
-    feature_counts_test = pickle.load(f)
-f.close()
-    
+    f.close()
+
 #-------------------------------------------------------------------------#
 # Make 4 chunks of the test data, depending on truth value                #
 #-------------------------------------------------------------------------#
@@ -157,34 +113,34 @@ resultsDF_fn = classifierTestResults[classifierTestResults['truthValue'] == 'fal
 responseTypes = ['truePositive', 'trueNegative', 'falsePositive', 'falseNegative']
 
 #-------------------------------------------------------------------#
-# Store top 10 terms in list for easy access                        #
+# Store all terms in list for easy access                           #
 #-------------------------------------------------------------------#
-visibleTermsList = list(informativeTerms['feature'].iloc[0:10])
+termsList = termScores['term'].tolist()
 selectedDF = resultsDF_tp
 numEmailsInSelectedDF = selectedDF.shape[0]
 emailPointer = 1
 
 #Highlight the terms in the email which are in the visible list
-highlightedEmailSubject = highlightTerms(resultsDF_tp.iloc[(emailPointer - 1)].subject, visibleTermsList)
-highlightedEmailBody = highlightTerms(resultsDF_tp.iloc[(emailPointer - 1)].body, visibleTermsList)
+highlightedEmailSubject = highlightTerms(resultsDF_tp.iloc[(emailPointer - 1)].subject, termsList, stopwords_english)
+highlightedEmailBody = highlightTerms(resultsDF_tp.iloc[(emailPointer - 1)].body, termsList, stopwords_english)
+posScore = selectedDF.iloc[(emailPointer - 1)].posProbability
+negScore = selectedDF.iloc[(emailPointer - 1)].negProbability
 subjectPlusBody = (resultsDF_tp.iloc[(emailPointer -1)].subject + " " + resultsDF_tp.iloc[(emailPointer - 1)].body)
-initialTextTokenLength = countTokens(subjectPlusBody)
-initialTextTermFreqs = countFreqs(visibleTermsList, subjectPlusBody)
 
-#----------------------------------------------------------------------------#
-#Local version of stylesheet from https://codepen.io/chriddyp/pen/bWLwgP.css #
-#----------------------------------------------------------------------------#
+#------------------------------------------------------------------------#
+#Local version of stylesheet https://codepen.io/chriddyp/pen/bWLwgP.css #
+#------------------------------------------------------------------------#
 stylesheets = ['bWLwgP.css']
 
-#--------------------------------------------#    
+#--------------------------------------------#
 # Start building the dashboard - initialize  #
-#--------------------------------------------#    
+#--------------------------------------------#
 app = dash.Dash()
 app.title = "Explore Email Classifier Performance"
 
-#--------------------------------------------#    
+#--------------------------------------------#
 #Allow locally-served css
-#--------------------------------------------#    
+#--------------------------------------------#
 app.css.config.serve_locally=True
 app.scripts.config.serve_locally=True
 
@@ -195,13 +151,24 @@ def static_file(path):
 
 #-----------------------------------------------------#
 # Layout dashboard with HTML and dash core components #
-#-----------------------------------------------------#    
+#-----------------------------------------------------#
 app.layout = html.Div(children = [
-     html.Link(
+    html.Link(
         rel='stylesheet',
         href='/static/bWLwgP.css'
     ),
-    html.H1(children = "How Well is My Email Classifier Working?", style={'textAlign': 'center'}),
+    html.Link(
+        href='/static/sorttable.js'
+    ),
+    html.Div(id="bannerDiv",
+             children = [
+                 html.Img(id = "contextEdgeLogo",
+                          src='./static/ContextEdge.png'),
+                 html.H1(id = "appHeader",
+                         children = "How Well is My Email Classifier Working?",
+                         style={'textAlign': 'center'}) #H1
+             ]), #bannerDiv,
+    html.H2("Overall Classifier Performance"),
     html.Div(id="classifier_stats_div", children =
              [
                  html.Div(id="performanceDiv",
@@ -209,16 +176,15 @@ app.layout = html.Div(children = [
                               html.Div(
                                   id="accuracy_table_div",
                                   children = [
-                                      html.H2("Overall Classifier Performance"),
                                       generateAccuracyTable(classifierStats)
-                                      ],
+                                  ],
                                   className = "six columns"
-                                  ),
+                              ),
                               html.Div(
                                   id = "truth_table_div",
                                   children = generateTruthTable(classifierStats),
                                   className = "six columns"
-                                  )
+                              )
                           ],
                           className="row")
              ]), #classifier_stats_div
@@ -236,80 +202,75 @@ app.layout = html.Div(children = [
             ]),
             html.Table(id = 'tableJumpTo', children = [
                 html.Tr(children = [
-                    html.Td(html.Label("Jump to Email No.")),
-                    html.Td(dcc.Input(id='inputEmailNumber', value = 1, type='number')), #Returns unicode string even though we request a number!
-                    html.Td(html.P(id = 'pTotalEmails', children = " of {}".format(numEmailsInSelectedDF))),
-                    html.Td(html.Button(id='buttonSubmit', children="Submit")),
+                    html.Th(html.Label("Jump to Email No.")),
+                    html.Th(dcc.Input(id='inputEmailNumber', value = 1, type='number')), #Returns unicode string even though we request a number!
+                    html.Th(html.P(id = 'pTotalEmails', children = " of {}".format(numEmailsInSelectedDF))),
+                    html.Th(html.Button(id='buttonSubmit', children="Submit")),
                 ]) #tr
-            ]), #tableJumpTo
+            ],
+            style={'margin-left': '0px'}), #tableJumpTo
             html.Div(id="text_div", children=[
                 html.Iframe(
                     id = 'email_text_iframe',
                     sandbox='',
-                    srcDoc = formatEmail(highlightedEmailSubject,
+                    srcDoc = formatEmail(posScore,
+                                         negScore,
+                                         highlightedEmailSubject,
                                          highlightedEmailBody),
-                    style = {'width': '550px', 'height': '200px'}
+                    style = {'width': '650px', 'height': '200px'}
                 )
             ], style= {'height':'200px', 'padding-top': '20px'})
         ]), #holder div
     ]),
-    html.Div(id="graph_div", className = "six columns", children=[
-        html.P("Display N terms/features:"),
-        dcc.Slider(
-            id = 'sliderVisibleTerms',
-            min = 3,
-            max = 30,
-            value = 10,
-            step = None,
-            marks = {str(num): str(num) for num in range(1,30)}
-        ),
-        dcc.Graph(
-            id='bar-chart',
-            figure={
-                'data': [
-                    go.Bar(
-                        x = [(feature_counts_training[term]/totalTermCounts['trainTokensTotal'] * 1000)
-                             for term in visibleTermsList],
-                        y = visibleTermsList,
-                        name = 'Training Corpus',
-                        orientation = 'h',
-                        width = .2
-                    ),
-                    go.Bar(
-                        x = [(feature_counts_test[term]/totalTermCounts['testTokensTotal'] * 1000)
-                             for term in visibleTermsList],
-                        y = visibleTermsList,
-                        name = 'Test Corpus',
-                        orientation = 'h',
-                        width = .2
-                    ),
-                    go.Bar(
-                        x = [(initialTextTermFreqs[term]/initialTextTokenLength * 1000) for term in visibleTermsList],
-                        y = visibleTermsList,
-                        name = 'This Email',
-                        orientation = 'h',
-                        width = .2
-                    )
-                ],
-                'layout': go.Layout(
-                    xaxis= {
-                        'title': 'Occurrences per 1000 word tokens',
-                        'autorange': True},
-                    yaxis= {
-                        'type': 'category',
-                        'autorange': True,
-                        'ticksuffix': '  ',
-                        'categoryorder': 'category descending'},
-                    width=500,
-                    height=500,
-                    title='Most Informative Terms',
-                    barmode='group'
-                )
-            }
-        )
-    ], style={'height': '800px'}) #Text_div
-], className = "row") #text_and_graph_div
+    html.H2("Terms/features used in model:"),
+    html.Div
+    (
+        id="tableAndSortdiv",
+        className = "six columns",
+        children=
+        [
+            html.Div
+            (
+                id = "sortSelectDiv",
+                style = {'display': 'block'},
+                children =
+                [
+                    html.Label("Sort By..."),
+                    html.Div
+                    (
+                        id="sortOptionsDiv",
+                        children =
+                        [
+                            dcc.RadioItems
+                            (
+                                id="sortBy",
+                                style={'display': 'inline-block', 'float': 'left'},
+                                options = [{'label': "{}".format(col), 'value': col } for col in termScores.columns ],
+                                value = 'modelCoef',
+                                labelStyle={'display': 'inline-block'}
+                            ),
+                            dcc.RadioItems
+                            (
+                                id = "sortOrder",
+                                style = {'display': 'inline-block', 'float': 'left'},
+                                options = [{'label': "{}".format(col), 'value': col } for col in ['Ascending', 'Descending']],
+                                value = 'Ascending',
+                                labelStyle={'display': 'inline-block'}
+                            )
+                        ]
+                    ), #SortoptionsDiv
+                    html.Div
+                    (
+                        id = "table_div",
+                        style= { 'clear': 'left', 'overflow-y': 'scroll', 'height': '350px'},
+                        children = [generateTermsTable(termScores)]
+                    ) #table_div
+                ]
 
+            ), #sortSelectDiv
+        ]
+    ) #tableAndSortDiv
+])
 
 #-------------------------------------------------------------------#
 # Define interactive behaviors from inputs                          #
@@ -326,12 +287,12 @@ def update_df_selection(input1):
     global resultsDF_fn
     global resultsDF_fp
     global emailPointer
-    
+
     selectedDF = chooseDF(input1)#
 
     #Reset to ist email
     emailPointer = 1
-        
+
     return (" of {}".format(selectedDF.shape[0]))
 
 #------------------------------------------------------------#
@@ -341,59 +302,36 @@ def update_df_selection(input1):
 @app.callback(Output('email_text_iframe', 'srcDoc'),
               [Input('buttonSubmit', 'n_clicks')],
               [State('showMe', 'value'),
-               State('inputEmailNumber', 'value'),
-               State('sliderVisibleTerms', 'value')])
-def update_displayed_email_text(nClicks, inputDF, inputEmailNumber, numTerms):
-    print("Updating email text")
+               State('inputEmailNumber', 'value')])
+def update_displayed_email_text(nClicks, inputDF, inputEmailNumber):
     global resultsDF_tp
     global resultsDF_tn
     global resultsDF_fn
     global resultsDF_fp
     global selectedDF
     global emailPointer
-    global visibleTermsList
-    global informativeTerms
+    global termsList
 
     #Switch to selected type of emails, true positive, false pos, etc
     selectedDF = chooseDF(inputDF)
-
-    #Refresh visible terms list to number set by slider
-    visibleTermsList = list(informativeTerms['feature'].iloc[0:numTerms])
 
     if (int(inputEmailNumber) > selectedDF.shape[0]):
         emailPointer = 1
     else:
         emailPointer = int(inputEmailNumber)
-    
-    highlightedEmailSubject = highlightTerms(selectedDF.iloc[(emailPointer - 1)].subject, visibleTermsList)
-    highlightedEmailBody = highlightTerms(selectedDF.iloc[(emailPointer - 1)].body, visibleTermsList)
-    return(formatEmail(highlightedEmailSubject, highlightedEmailBody))
 
-#---------------------------------------------------------#
-# Refresh the bar chart values based on the current email #
-#---------------------------------------------------------#
-@app.callback(Output('bar-chart', 'figure'),
-              [Input('buttonSubmit', 'n_clicks')],
-              [State('showMe', 'value'),
-               State('inputEmailNumber', 'value'),
-               State('sliderVisibleTerms', 'value')])
-def updateBarChart(n_clicks, chosenDF, myEmailNumber, numTerms):
-    #I'm not actually using n_clicks
-    print("Updating Bar Chart")
-    global selectedDF
-    global emailPointer
-    global visibleTermsList
-    global informativeTerms
+    posProbability = selectedDF.iloc[(emailPointer - 1)].posProbability
 
-    selectDF = chooseDF(chosenDF)
-    emailPointer = int(myEmailNumber)
+    negProbability = selectedDF.iloc[(emailPointer - 1)].negProbability
 
-    #Update the list of visible terms to show in graph based on slider
-    visibleTermsList = list(informativeTerms['feature'].iloc[0:numTerms])
-    
-    subjectPlusBody = (selectedDF.iloc[(emailPointer -1)].subject + " " + selectedDF.iloc[(emailPointer - 1)].body)
-    newFigure = updateBarChartData(subjectPlusBody)
-    return (newFigure)
+    highlightedEmailSubject = highlightTerms(selectedDF.iloc[(emailPointer - 1)].subject, termsList, stopwords_english)
+    highlightedEmailBody = highlightTerms(selectedDF.iloc[(emailPointer - 1)].body, termsList, stopwords_english)
+
+    return(formatEmail(posProbability,
+                       negProbability,
+                       highlightedEmailSubject,
+                       highlightedEmailBody))
+
 
 #---------------------------------------------------------------#
 # Highlight accuracy or error rate depending on which value     #
@@ -401,30 +339,14 @@ def updateBarChart(n_clicks, chosenDF, myEmailNumber, numTerms):
 # Feeling bad about writing four functions to update four cells #
 # but can't see better way...                                   #
 #---------------------------------------------------------------#
-@app.callback(Output('accuracyTableCell1', 'className'),
-              [Input('buttonSubmit', 'n_clicks')],
-              [State('showMe', 'value')])
-def updateAccurcyCell1(n_clicks, showMe):
-    if (showMe in ['truePositive', 'trueNegative']):
-        return('highlightedCell')
-    else:
-        return('normalCell')
 @app.callback(Output('accuracyTableCell2', 'className'),
               [Input('buttonSubmit', 'n_clicks')],
               [State('showMe', 'value')])
-def updateAccurcyCell2(n_clicks, showMe):
+def updateAccuracyCell2(n_clicks, showMe):
     if (showMe in ['truePositive', 'trueNegative']):
         return('highlightedCell')
     else:
         return('normalCell')
-@app.callback(Output('errorTableCell1', 'className'),
-              [Input('buttonSubmit', 'n_clicks')],
-              [State('showMe', 'value')])
-def updateErrorCell1(n_clicks, showMe):
-    if (showMe in ['truePositive', 'trueNegative']):
-        return('normalCell')
-    else:
-        return('highlightedCell')
 @app.callback(Output('errorTableCell2', 'className'),
               [Input('buttonSubmit', 'n_clicks')],
               [State('showMe', 'value')])
@@ -433,6 +355,7 @@ def updateErrorCell2(n_clicks, showMe):
         return('normalCell')
     else:
         return('highlightedCell')
+
 #---------------------------------------------------------------#
 # Highlight truth table depending on radio button selection     #
 #---------------------------------------------------------------#
@@ -443,7 +366,7 @@ def updateTruePositivesCell(n_clicks, showMe):
     if (showMe == 'truePositive'):
         return('highlightedCell')
     else:
-        return('normalCell')    
+        return('normalCell')
 @app.callback(Output('trueNegativesCell', 'className'),
               [Input('buttonSubmit', 'n_clicks')],
               [State('showMe', 'value')])
@@ -451,7 +374,7 @@ def updateTrueNegativesCell(n_clicks, showMe):
     if (showMe == 'trueNegative'):
         return('highlightedCell')
     else:
-        return('normalCell')    
+        return('normalCell')
 @app.callback(Output('falsePositivesCell', 'className'),
               [Input('buttonSubmit', 'n_clicks')],
               [State('showMe', 'value')])
@@ -459,7 +382,7 @@ def updateFalsePositivesCell(n_clicks, showMe):
     if (showMe == 'falsePositive'):
         return('highlightedCell')
     else:
-        return('normalCell')    
+        return('normalCell')
 @app.callback(Output('falseNegativesCell', 'className'),
               [Input('buttonSubmit', 'n_clicks')],
               [State('showMe', 'value')])
@@ -467,10 +390,16 @@ def updateFalseNegativesCell(n_clicks, showMe):
     if (showMe == 'falseNegative'):
         return('highlightedCell')
     else:
-        return('normalCell')    
+        return('normalCell')
 
-if __name__ == '__main__':
-    app.run_server(debug=False)
+#------------------------------------------------------------------------#
+# Sort and return the terms table using the options in the radio buttons #
+#------------------------------------------------------------------------#
+@app.callback(Output('table_div', 'children'),
+              [Input('sortBy', 'value'),
+              Input('sortOrder', 'value')])
+def sortTermsTable(mySortBy, mySortOrder):
+    print("{}|{}".format(mySortBy, mySortOrder))
+    return(generateTermsTable(termScores, mySortBy, mySortOrder))
 
-    
-                
+app.run_server(debug=True)

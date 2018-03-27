@@ -8,7 +8,7 @@ from nltk.tokenize import WhitespaceTokenizer
 # Tip of the hat to this page https://stackoverflow.com/questions/31668493/get-indices-of-original-text-from-nltk-word-tokenize
 import dash
 import dash_html_components as html
-
+import csv
 
 #----------------------------------------------------------------------#
 # Globals                                                              #
@@ -25,6 +25,17 @@ def countTokens(myText):
     tokens = myTokenizer.tokenize(myText)
     #Don't count punctuation-only tokens
     return len([elem for elem in map(stripPunctuation, tokens) if len(elem) > 0])
+
+#
+def load_term_scores(myFn):
+    result = []
+    lineNo = 0
+    f_csv = csv.reader(myFn, delimiter=chr(31))
+    headers = next(f_csv)
+    for line in (f_csv):
+        lineNo += 1
+        result.append(line)
+    return (headers, result)
 
 #----------------------------------------------------------------------#
 # Return dict of counts of terms in list in text string
@@ -45,81 +56,96 @@ def countFreqs(myTermsList, myText):
 #----------------------------------------------------------------------#
 # Format an email subject and body as a raw html string                #
 #----------------------------------------------------------------------#
-def formatEmail(mySubject, myBody):
-    return ("<h3>" + mySubject + "</h3><hr>" + myBody)
+def formatEmail(myPosScore, myNegScore, mySubject, myBody):
+    return ("Prob in category: " + str(myPosScore) +
+            " | Prob. not in category: " + str(myNegScore) +
+            "<hr><h3>" + mySubject + "</h3><hr>" + myBody)
 
 #------------------------------------------------#
 # Return rows and cells of classifier accuracy   #
 #------------------------------------------------#
 def generateAccuracyTable(myStats):
     '''Returns 2-row table with labels in column 1, accuracy, error rate'''
-    return html.Table([
-        html.Tr([
-            html.Th("Accuracy"),
-            html.Td("{:.1%}".format(myStats['accuracy']))
+    return html.Table(
+        id = "accuracyTable",
+        children = [
+            html.Tr([
+                html.Th(),
+                html.Th(children = "Results on Test Corpus")
+            ]),
+            html.Tr([
+                html.Th(
+                    id='accuracyTableCell1',
+                    children = "Accuracy"
+                ),
+                html.Td(
+                    id = 'accuracyTableCell2',
+                    children = "{:.1%}".format(myStats['accuracy']),
+                    className = 'highlightedCell'
+                )
         ]),
         html.Tr([
-            html.Th("Error Rate"),
-            html.Td("{:.1%}".format(myStats['errorRate']))
+            html.Th(
+                id = 'errorTableCell1',
+                children = "Error Rate"
+            ),
+            html.Td(
+                id = 'errorTableCell2',
+                children = "{:.1%}".format(myStats['errorRate']),
+                className = 'normalCell'
+            )
         ])
     ])
 #--------------------------------------------------#
 # Return rows and cells for classifier truth table #
 #--------------------------------------------------#
 def generateTruthTable(myStats):
+    return html.Table(
+        id = "truthTable",
+        children =
+        [
+            html.Tr([
+                html.Th(),
+            html.Th(),
+            html.Th("Ground Truth Value", style={'colspan': '2'})
+        ]),
+        html.Tr([
+            html.Th(),
+            html.Th(),
+            html.Th("Personal"),
+            html.Th("Not Personal")
+        ]),
+        html.Tr([
+            html.Th(children="Classifier Assigned", style={'rowSpan': 2}),
+            html.Th("Personal"),
+            html.Td(
+                id = 'truePositivesCell',
+                children = myStats['truePositive'],
+                className = 'highlightedCell'
+            ),
+            html.Td(
+                id = 'falsePositivesCell',
+                children = myStats['falsePositive'],
+                className = 'normalCell'
+            )
+        ]),
+        html.Tr([
+            html.Th(),
+            html.Th("Not Personal"),
+            html.Td(
+                id = 'falseNegativesCell',
+                children = myStats['falseNegative'],
+                className = 'normalCell'
+            ),
+            html.Td(
+                id = 'trueNegativesCell',
+                children = myStats['trueNegative'],
+                className = 'normalCell'
+            )
+        ])
+    ])
 
-    try:
-        return html.Table([
-            html.Tr([
-                html.Th(),
-                html.Th(),
-                html.Th("Ground Truth Value", style={'colspan': '2'})
-            ]),
-            html.Tr([
-                html.Th(),
-                html.Th(),
-                html.Th("Personal"),
-                html.Th("Not Personal")
-            ]),
-            html.Tr([
-                html.Th(children="Classifier Assigned", style={'rowSpan': 2}),
-                html.Th("Personal"),
-                html.Td(myStats['truePositive']),
-                html.Td(myStats['falsePositive'])
-            ]),
-            html.Tr([
-                html.Th(),
-                html.Th("Not Personal"),
-                html.Td(myStats['falseNegative']),
-                html.Td(myStats['trueNegative'])
-            ])
-        ])
-    except KeyError:
-            return html.Table([
-            html.Tr([
-                html.Th(),
-                html.Th(),
-                html.Th("Ground Truth Value", style={'colspan': '2'})
-            ]),
-            html.Tr([
-                html.Th(),
-                html.Th(),
-                html.Th("Personal"),
-                html.Th("Not Personal")
-            ]),
-            html.Tr([
-                html.Th(children="Classifier Assigned", style={'rowSpan': 2}),
-                html.Th("Personal"),
-                # html.Td(myStats['truePositive']),
-                html.Td(myStats['falsePositive'])
-            ]),
-            html.Tr([
-                html.Th(),
-                html.Th("Not Personal"),
-                # html.Td(myStats['falseNegative']),
-                html.Td(myStats['trueNegative'])
-            ])
-        ])
+
 
 #-------------------------------------------------------------------------#
 # Using same stemmer and preprocessor definition as used in NB classifier #
@@ -133,14 +159,14 @@ def preprocess(text):
         lower_text = text.lower()
     return lower_text
 
-def myTokenize(text):
+def myTokenize(text, removeStopwords=True):
     global snowballStemmer
     global myTokenizer
-    
+
     tokens = []
     filtered = []
     stemmed = []
-    
+
     cleaned = preprocess(text)
 
     #Generate a list of tokens and also the spans from the preprocessed text
@@ -161,7 +187,10 @@ def myTokenize(text):
     tokens_with_spans = zip(cleanedTokens, cleanedSpans)
 
     #Remove stop words
-    filtered = [(w,s) for (w,s) in tokens_with_spans if not w in stopwords.words('english')]
+    if (removeStopwords):
+        filtered = [(w,s) for (w,s) in tokens_with_spans if not w in stopwords.words('english')]
+    else:
+        filtered = [(w,s) for (w,s) in tokens_with_spans]
 
     #Stem each token
 
@@ -175,36 +204,6 @@ def myTokenize(text):
 #------------------------------------------------#
 def wrapSpan(string):
     return("<span class=\"highlightme\" style=\"background-color: yellow\">" + string + "</span>")
-
-#------------------------------------------------#
-# Highlight all terms in string matching list
-# wrap with span tags and highlight class 
-# lifting methods from here https://stackoverflow.com/questions/34956423/python-tkinter-change-text-background-of-some-textual-spans?rq=1
-#------------------------------------------------#
-def highlightTerms(textString, termsList):
-    '''
-    Highlight all terms in input string matching list of terms in 2nd arg
-    '''
-
-    rawText = textString
-    highlightedText = [] #empty for now
-    
-    inputTerms_with_spans = myTokenize(rawText)
-    currentOffset = 0
-    
-    for (term, span) in inputTerms_with_spans:
-        if (term in termsList):
-            start = span[0]
-            end = span[1]
-            highlightedText += rawText[currentOffset:start]
-            highlightedText += list("<span style=\"background-color: yellow\">")
-            highlightedText += rawText[start:end]
-            highlightedText += list("</span>")
-            currentOffset = (end)
-
-    highlightedText += rawText[currentOffset:]
-        
-    return(''.join(highlightedText))
 
 #------------------------------------------------#
 # Divide, but check if divisor is 0 first        #
@@ -274,7 +273,7 @@ def update_bar_data(new_value, hour_tallies):
                 name='Sensitivity Official',
                 marker={'color': '#1f77b4'}
             ),
-            
+
         ],
         'layout': go.Layout(
             xaxis={'title': 'Hour'},
@@ -282,3 +281,89 @@ def update_bar_data(new_value, hour_tallies):
         )
     }
 
+#------------------------------------------------#
+# Highlight all terms in string matching list
+# wrap with span tags and highlight class
+# lifting methods from here https://stackoverflow.com/questions/34956423/python-tkinter-change-text-background-of-some-textual-spans?rq=1
+#------------------------------------------------#
+def highlightTerms(textString, termsList, myStopwords):
+    '''
+    Highlight all terms in input string matching list of terms in 2nd arg
+    '''
+
+    rawText = textString
+
+    #Only highlight top message, not replies
+    pos = rawText.find(' From:')
+    if pos == -1:
+        top = rawText
+        rest = ''
+    else:
+        top = rawText[:(pos-1)]
+        rest = rawText[pos:]
+
+    highlightedText = [] #empty for now
+
+    inputTerms_with_spans = myTokenize(top, removeStopwords=False)
+    currentOffset = 0
+
+    for (token, span) in inputTerms_with_spans:
+        if (token in termsList):
+            start = span[0]
+            end = span[1]
+            highlightedText += top[currentOffset:start]
+            highlightedText += list("<span style=\"background-color: #2ca02c\">")
+            highlightedText += top[start:end]
+            highlightedText += list("</span>")
+            currentOffset = (end)
+
+        elif (token in myStopwords):
+            start = span[0]
+            end = span[1]
+            highlightedText += top[currentOffset:start]
+            highlightedText += list("<span style=\"background-color: grey\">")
+            highlightedText += top[start:end]
+            highlightedText += list("</span>")
+            currentOffset = (end)
+
+    highlightedText += top[currentOffset:]
+
+    return(''.join(highlightedText) + '<i>' + rest + '</i>')
+
+#--------------------------------------------------------------#
+# Pass in a df of terms and scores, get back a dash.html Table #
+#--------------------------------------------------------------#
+def generateTermsTable(myTerms, sortBy='modelCoef', sortOrder='Ascending'):
+    if (sortOrder == 'Ascending'):
+        ascend = True
+    else:
+        ascend = False
+
+    sorted = myTerms.sort_values(by=[sortBy], ascending=ascend)
+    labels = ['Term', 'Importance of Term in Model', 'Assoc. Term + Category', 'Assoc. Term + ~Category']
+    return html.Table(
+        children =
+        [
+            html.Tr
+            (
+                [
+                    html.Th(col) for col in labels
+                ]
+            )
+        ] +
+        [
+            html.Tr
+            (
+                [
+                    html.Td
+                    (
+                        sorted.iloc[i][col]
+                    )
+                    for col in sorted.columns
+                ]
+            )
+            for i in range(len(sorted))
+        ],
+        id = "termsTable",
+        className = "sortable"
+    )
